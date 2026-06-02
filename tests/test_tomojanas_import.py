@@ -366,6 +366,39 @@ def test_status_scan_and_sync():
         print("PASS test_status_scan_and_sync")
 
 
+def test_status_create_volume():
+    """status --create-volume backfills _rec.mrc for particles imported
+    without crops, and adds the rec-crop block to P*.star."""
+    from tomojanas.io.mrc import read_mrc_header
+    with tempfile.TemporaryDirectory() as d:
+        imod_dir = _make_imod_dir(d)
+        project = os.path.join(d, "project")
+        _run_cmd(["imod", "--project", project, "--create-if-missing",
+                   "--imod-dir", imod_dir, "--tomo-name", TOMO_NAME])
+        # import WITHOUT --write-rec-crops
+        _run_cmd(["particles", "--project", project, "--tomo-name", TOMO_NAME,
+                   "--input-single-point", "8,8,4", "--coordinate-system", "rec-voxel",
+                   "--indexing", "zero-based", "--roi-radius-angst", "8"])
+
+        recs = os.path.join(project, "tilt_series", TOMO_NAME, "individual_particles_recs")
+        assert not (os.path.isdir(recs) and os.listdir(recs)), "no crop expected yet"
+
+        rc = _run_cmd(["status", "--project", project, "--tomo-name", TOMO_NAME,
+                        "--create-volume", "--crop-storage-box-size", "6"])
+        assert rc == 0, f"status --create-volume returned {rc}"
+
+        crop = os.path.join(recs, "P000001_rec.mrc")
+        assert os.path.isfile(crop), "rec crop not created"
+        hdr = read_mrc_header(crop)
+        assert (hdr.nx, hdr.ny, hdr.nz) == (6, 6, 6)
+
+        p_star = os.path.join(project, "tilt_series", TOMO_NAME,
+                               "individual_particles", "P000001.star")
+        blks = read_star(p_star)
+        assert "tomoJANAS_particle_rec_crop" in blks, "crop block not added to P*.star"
+        print("PASS test_status_create_volume")
+
+
 def test_validate_strict():
     with tempfile.TemporaryDirectory() as d:
         imod_dir = _make_imod_dir(d)
@@ -566,6 +599,7 @@ TESTS: List[Tuple[str, Callable]] = [
     ("test_external_paths_absolute", test_external_paths_absolute),
     ("test_particle_autoincrement_and_command_log", test_particle_autoincrement_and_command_log),
     ("test_status_scan_and_sync", test_status_scan_and_sync),
+    ("test_status_create_volume", test_status_create_volume),
     ("test_validate_strict", test_validate_strict),
     ("test_ctf_missing", test_ctf_missing),
     ("test_defocus_unit_conversion", test_defocus_unit_conversion),

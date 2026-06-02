@@ -123,6 +123,25 @@ Useful crop options:
 | `--crop-outside-policy {error,pad,partial,skip}` | Behaviour when the ROI extends past the tomogram (default `partial`) |
 | `--crop-padding-angst` / `--crop-padding-voxel` | Padding added around the ROI |
 
+### 3b. Create sub-volumes for already-imported particles
+
+If you imported particles **without** `--write-rec-crops`, you can backfill the
+3D sub-volumes afterwards (no re-import needed) with `status --create-volume`.
+It reads the coordinate and ROI radius from each `P*.star`, writes the missing
+`individual_particles_recs/P*_rec.mrc`, and adds the crop block to the
+`P*.star`:
+
+```bash
+tomojanas-import status \
+  --project first \
+  --tomo-name lam8_ts_006 \
+  --create-volume
+```
+
+Options mirror the import crop options (`--crop-storage-box-size`,
+`--apply-spherical-mask`, `--crop-outside-policy`, `--crop-padding-*`,
+`--crop-pad-value`). Use `--overwrite-crops` to regenerate existing crops.
+
 ---
 
 ## 4. Import CTF metadata (no pixel modification)

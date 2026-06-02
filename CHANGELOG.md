@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added (newest)
+- **`tomojanas-import status --create-volume`** (alias `--create-rec-crops`): backfills the 3D rec sub-volume (`individual_particles_recs/P*_rec.mrc`) for particles imported without `--write-rec-crops`. Reads the coordinate and ROI radius from each `P*.star` (deriving the rec-voxel centre from the canonical centered-Ångström coordinate, so it is convention-independent), writes the crop, and adds the rec-crop block to the `P*.star`. Honours the crop options (`--crop-storage-box-size`, `--apply-spherical-mask`, `--crop-outside-policy`, `--crop-padding-*`, `--crop-pad-value`, `--overwrite-crops`).
 - **Command log:** every `tomojanas-import` invocation is appended (with exit status, timestamp, full argv, cwd) to `logs/commands.jsonl` and a replayable `logs/commands.sh`. Reproduce a project elsewhere by editing `--project` and running the script.
 - **`tomojanas-import status`:** scans the project tree and reports particles registered in `particles_all.star` vs. the `P*.star` / crop files on disk, flagging orphans/missing/unregistered entries. `--sync` rebuilds `particles_all.star` from the `P*.star` files present (reconciles after manual deletions). `--strict` exits non-zero on any inconsistency.
 - **Particle ID auto-increment:** re-running a `--input-single-point` (or any import) now continues numbering from the highest existing `P*` (e.g. adds `P000002`) instead of overwriting `P000001`. Use `--particle-name`/`--start-particle-id` to control explicitly.

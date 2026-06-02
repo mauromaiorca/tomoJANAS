@@ -26,7 +26,9 @@ tomoJANAS is **not** a RELION clone. It has its own project structure and uses R
 | `tomojanas-import particles` | Import picked coordinates (CSV, STAR, napari, IMOD, single point) and compute per-tilt projections |
 | `tomojanas-import ctf` | Import CTF metadata from CtfPlotter, CTFFind or IMOD without modifying images |
 | `tomojanas-import validate` | Validate project consistency (binning, tilt counts, coordinates, CTF coverage) |
-| `tomojanas-import status` | Scan the project tree, report registered vs. on-disk particles, and reconcile (`--sync`) after manual deletions |
+| `tomojanas-import status` | Scan the project tree, report registered vs. on-disk particles, reconcile (`--sync`), and create missing sub-volumes (`--create-volume`) |
+
+**Creating sub-volumes:** add `--write-rec-crops` to `tomojanas-import particles` to extract the 3D sub-volume at import time, or run `tomojanas-import status --create-volume` to backfill sub-volumes for particles imported earlier.
 
 Every invocation is appended (with its exit status) to `logs/commands.jsonl` and a replayable `logs/commands.sh`, so a project's import history can be reproduced in a new project.
 

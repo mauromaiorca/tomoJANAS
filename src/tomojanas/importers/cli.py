@@ -201,6 +201,20 @@ def _build_parser() -> argparse.ArgumentParser:
                           help="rebuild particles_all.star from the P*.star files on disk")
     status_p.add_argument("--strict", action="store_true", default=False,
                           help="exit non-zero if any inconsistency is found")
+    # create the 3D rec sub-volumes for already-imported particles
+    status_p.add_argument("--create-volume", "--create-rec-crops",
+                          dest="create_volume", action="store_true", default=False,
+                          help="create the 3D rec sub-volume (_rec.mrc) for each "
+                               "particle that does not have one yet")
+    status_p.add_argument("--overwrite-crops", action="store_true", default=False,
+                          help="with --create-volume, regenerate crops even if they exist")
+    status_p.add_argument("--crop-storage-box-size", type=int, default=None)
+    status_p.add_argument("--crop-padding-voxel", type=float, default=0.0)
+    status_p.add_argument("--crop-padding-angst", type=float, default=0.0)
+    status_p.add_argument("--crop-outside-policy", default="partial",
+                          choices=["error", "pad", "partial", "skip"])
+    status_p.add_argument("--crop-pad-value", type=float, default=0.0)
+    status_p.add_argument("--apply-spherical-mask", action="store_true", default=False)
 
     return parser
 
