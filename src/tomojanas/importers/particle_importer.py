@@ -308,6 +308,32 @@ def import_particles(args) -> int:
     a_rec = rec_hdr.pixel_x if rec_hdr else (a_ali * B_rec_ali)
 
     # ------------------------------------------------------------------ #
+    # Coordinate resolution: apply indexing + optional per-axis flips ONCE,
+    # producing a canonical 0-based rec-voxel coordinate used consistently for
+    # the centered-Angstrom value, the per-tilt projections and the crop.
+    # The original typed values are preserved for the picked-source block.
+    # ------------------------------------------------------------------ #
+    flip_x = getattr(args, "coord_flip_x", False)
+    flip_y = getattr(args, "coord_flip_y", False)
+    flip_z = getattr(args, "coord_flip_z", False)
+    if (flip_x or flip_y or flip_z):
+        logger.info(f"coordinate flips: x={flip_x} y={flip_y} z={flip_z}")
+
+    def _resolve_voxel(x, y, z):
+        """Typed rec-voxel (any indexing) -> canonical 0-based rec-voxel."""
+        x, y, z = float(x), float(y), float(z)
+        if indexing == "one-based":
+            x, y, z = x - 1.0, y - 1.0, z - 1.0
+        if rec_hdr is not None:
+            if flip_x:
+                x = (rec_hdr.nx - 1) - x
+            if flip_y:
+                y = (rec_hdr.ny - 1) - y
+            if flip_z:
+                z = (rec_hdr.nz - 1) - z
+        return x, y, z
+
+    # ------------------------------------------------------------------ #
     # Process each particle
     # ------------------------------------------------------------------ #
     all_particle_rows: List[Dict] = []
@@ -317,21 +343,18 @@ def import_particles(args) -> int:
         pname = particle_names[idx]
         particle_id = next_id + idx
 
+        # canonical 0-based rec-voxel coordinate (indexing + flips applied)
+        xr, yr, zr = _resolve_voxel(x_in, y_in, z_in)
+
         # --- coordinate conversion ---
-        if coord_system == "rec-voxel":
-            x_ang, y_ang, z_ang = rec_voxel_to_relion_centered_angst(
-                x_in, y_in, z_in,
-                tomo_size_x, tomo_size_y, tomo_size_z,
-                a_ali, B_rec_ali, indexing,
-            )
-        elif coord_system == "relion-centered-angst":
-            x_ang, y_ang, z_ang = x_in, y_in, z_in
+        if coord_system == "relion-centered-angst":
+            x_ang, y_ang, z_ang = float(x_in), float(y_in), float(z_in)
         else:
-            # fallback: treat as rec-voxel
+            # rec-voxel (and fallback): use the resolved 0-based coordinate
             x_ang, y_ang, z_ang = rec_voxel_to_relion_centered_angst(
-                x_in, y_in, z_in,
+                xr, yr, zr,
                 tomo_size_x, tomo_size_y, tomo_size_z,
-                a_ali, B_rec_ali, indexing,
+                a_ali, B_rec_ali, "zero-based",
             )
 
         particle_row = {
@@ -354,9 +377,9 @@ def import_particles(args) -> int:
         }
         all_particle_rows.append(particle_row)
 
-        # --- per-tilt projections ---
+        # --- per-tilt projections (resolved 0-based rec voxel) ---
         proj_rows = _compute_projections(
-            x_in, y_in, z_in, B_rec_ali,
+            xr, yr, zr, B_rec_ali,
             proj_matrices, xf_df_tomo, tilt_angles,
             ali_stack_path, ali_nx, ali_ny, roi_radius_ali_px,
         )
@@ -366,7 +389,7 @@ def import_particles(args) -> int:
         if write_rec_crops and rec_volume is not None:
             crop_row = _write_rec_crop(
                 rec_volume, rec_hdr, rec_crop_dir, pname,
-                x_in, y_in, z_in, indexing,
+                xr, yr, zr, "zero-based",
                 roi_radius_angst, a_rec,
                 crop_box_override, crop_pad_vox, crop_pad_angst,
                 crop_outside_policy, crop_pad_value, apply_sphere_mask,

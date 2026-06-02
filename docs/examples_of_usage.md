@@ -235,6 +235,29 @@ most common cause of a wrong crop is a swapped axis order from the picking tool:
 
 All six axis-order permutations are accepted: `xyz, xzy, yxz, yzx, zxy, zyx`.
 
+### Is my tomogram "flipped"?
+
+Look at the `[crop]` diagnostic dims. The **thickness** is the smallest axis:
+
+- thickness is the **last** axis, e.g. `(1024, 1440, 382)` → **natural orientation**
+  (already rotated). 3dmod readouts map directly to the file → use
+  **`--axis-order xyz --indexing one-based`**.
+- thickness is the **middle** axis, e.g. `(1024, 382, 1440)` → **flipped**
+  (raw `tilt` output). 3dmod shows it rotated → use
+  **`--axis-order xzy --indexing one-based`**.
+
+### An axis is counted from the wrong end
+
+If the order is right but the crop is mirrored along one axis (the feature lands
+on the opposite side), invert that axis with `--coord-flip-x`, `--coord-flip-y`
+or `--coord-flip-z` (applied in 0-based rec-voxel space, so `v → (N-1) - v`).
+This handles tools whose Y origin is at the top instead of the bottom, or an
+inverted handedness in Z.
+
+**Tip to identify the wrong axis:** pick a feature near a known **corner/edge**
+of the tomogram. A wrong order or flip will place the crop on the opposite
+side, making the offending axis obvious.
+
 When you run a crop, tomoJANAS prints a diagnostic line, e.g.:
 
 ```
