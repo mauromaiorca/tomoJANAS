@@ -282,8 +282,13 @@ def import_imod_project(args) -> int:
     # Write / update tomograms.star
     # ------------------------------------------------------------------ #
     tomograms_star = pw.tomograms_star_path(project_root)
+    # Internal project files use the relative/absolute policy; EXTERNAL IMOD
+    # source files are ALWAYS stored as absolute paths.
     tilt_star_rel = pw.store_path(tilt_star_path, project_root, relative)
-    rec_tomo_stor = pw.store_path(rec_tomo, project_root, relative) if rec_tomo else "?"
+    rec_tomo_stor = os.path.abspath(rec_tomo) if rec_tomo else "?"
+
+    def _ext(p):
+        return os.path.abspath(p) if p else "?"
 
     global_row = {
         "_rlnTomoName": tomo_name,
@@ -306,15 +311,15 @@ def import_imod_project(args) -> int:
     }
     source_row = {
         "_tomoJANASTomoName": tomo_name,
-        "_tomoJANASImodDir": imod_dir,
-        "_tomoJANASRawStack": pw.store_path(raw_stack, project_root, relative) if raw_stack else "?",
-        "_tomoJANASMdocFile": pw.store_path(mdoc_file, project_root, relative) if mdoc_file else "?",
-        "_tomoJANASAliStack": pw.store_path(ali_stack, project_root, relative) if ali_stack else "?",
+        "_tomoJANASImodDir": _ext(imod_dir),
+        "_tomoJANASRawStack": _ext(raw_stack),
+        "_tomoJANASMdocFile": _ext(mdoc_file),
+        "_tomoJANASAliStack": _ext(ali_stack),
         "_tomoJANASRecTomogram": rec_tomo_stor,
-        "_tomoJANASXfFile": pw.store_path(xf_file, project_root, relative) if xf_file else "?",
-        "_tomoJANASTltFile": pw.store_path(tlt_file, project_root, relative) if tlt_file else "?",
-        "_tomoJANASNewstCom": pw.store_path(newst_com, project_root, relative) if newst_com else "?",
-        "_tomoJANASTiltCom": pw.store_path(tilt_com, project_root, relative) if tilt_com else "?",
+        "_tomoJANASXfFile": _ext(xf_file),
+        "_tomoJANASTltFile": _ext(tlt_file),
+        "_tomoJANASNewstCom": _ext(newst_com),
+        "_tomoJANASTiltCom": _ext(tilt_com),
         "_tomoJANASMicrographReference": micrograph_ref,
         "_tomoJANASCtfSource": ctf_source,
         "_tomoJANASCtfPremultiplied": "1" if ctf_premultiplied else "0",
@@ -407,8 +412,9 @@ def _write_tilt_series_star(
     tlt_file, xf_file, n_frames, micrograph_ref, project_root,
     relative, B_rec_ali, a_ali,
 ):
-    ali_rel = pw.store_path(ali_stack, project_root, relative) if ali_stack else "?"
-    raw_rel = pw.store_path(raw_stack, project_root, relative) if raw_stack else "?"
+    # External source stacks are referenced by absolute path.
+    ali_rel = os.path.abspath(ali_stack) if ali_stack else "?"
+    raw_rel = os.path.abspath(raw_stack) if raw_stack else "?"
 
     # Load tilt angles and xf if available
     tilt_angles = []

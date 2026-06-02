@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added (latest)
+- **Physical rec sub-volume crops** in `tomojanas-import particles`: `--write-rec-crops` extracts a cubic storage box around the spherical ROI from the reconstructed tomogram, writes `individual_particles_recs/P*_rec.mrc` (float32, header/origin updated via `write_cropped_mrc_like`), and records a `data_tomoJANAS_particle_rec_crop` block in `P*.star`. Supports `--crop-storage-box-size`, `--crop-padding-voxel/angst`, `--crop-outside-policy {error,pad,partial,skip}`, `--crop-pad-value`, `--apply-spherical-mask`.
+
+### Changed (latest)
+- **Path policy:** external IMOD source files (rec/ali/raw stacks, `.xf`, `.tlt`, `.mdoc`, `.com`, imod-dir) are now always stored as **absolute** paths in STAR files; only internal project files (tilt-series STAR, individual particle STAR, crop MRCs) use relative paths. This matches the convention that relative paths are for project-internal files only.
+
 ### Added
 
 **Geometry and metadata modules:**

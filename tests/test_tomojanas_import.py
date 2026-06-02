@@ -236,6 +236,79 @@ def test_particles_import():
         print("PASS test_particles_import")
 
 
+def test_rec_crop_writing():
+    """--write-rec-crops produces a physical sub-volume + crop metadata block,
+    with internal crop path relative and external source path absolute."""
+    with tempfile.TemporaryDirectory() as d:
+        imod_dir = _make_imod_dir(d)
+        project = os.path.join(d, "project")
+
+        _run_cmd(["imod", "--project", project, "--create-if-missing",
+                   "--imod-dir", imod_dir, "--tomo-name", TOMO_NAME])
+
+        rc = _run_cmd([
+            "particles", "--project", project, "--tomo-name", TOMO_NAME,
+            "--input-single-point", "8,8,4",
+            "--coordinate-system", "rec-voxel", "--indexing", "zero-based",
+            "--roi-radius-angst", "8.0",
+            "--write-rec-crops",
+            "--crop-storage-box-size", "6",
+        ])
+        assert rc == 0, f"particles import returned {rc}"
+
+        # crop MRC must exist
+        crop_path = os.path.join(project, "tilt_series", TOMO_NAME,
+                                  "individual_particles_recs", "P000001_rec.mrc")
+        assert os.path.isfile(crop_path), f"rec crop not written at {crop_path}"
+
+        # crop must be the requested box size and readable
+        from tomojanas.io.mrc import read_mrc_header
+        hdr = read_mrc_header(crop_path)
+        assert (hdr.nx, hdr.ny, hdr.nz) == (6, 6, 6), f"crop dims {hdr.nx}x{hdr.ny}x{hdr.nz}"
+
+        # P*.star has the rec crop block; check path policy
+        p_star = os.path.join(project, "tilt_series", TOMO_NAME,
+                               "individual_particles", "P000001.star")
+        blks = read_star(p_star)
+        assert "tomoJANAS_particle_rec_crop" in blks, "rec crop block missing in P*.star"
+        crop_df = blks["tomoJANAS_particle_rec_crop"]["df"]
+        rec_path_stored = str(crop_df["_tomoJANASParticleRecPath"].iloc[0])
+        src_stored = str(crop_df["_tomoJANASParticleRecSourceTomogram"].iloc[0])
+        # internal crop path → relative
+        assert not os.path.isabs(rec_path_stored), f"crop path should be relative: {rec_path_stored}"
+        # external source tomogram → absolute
+        assert os.path.isabs(src_stored), f"source tomogram should be absolute: {src_stored}"
+
+        print("PASS test_rec_crop_writing")
+
+
+def test_external_paths_absolute():
+    """External IMOD source files are stored as absolute paths in tomograms.star."""
+    with tempfile.TemporaryDirectory() as d:
+        imod_dir = _make_imod_dir(d)
+        project = os.path.join(d, "project")
+        _run_cmd(["imod", "--project", project, "--create-if-missing",
+                   "--imod-dir", imod_dir, "--tomo-name", TOMO_NAME])
+
+        blks = read_star(os.path.join(project, "tomograms.star"))
+        src_df = blks["tomoJANAS_tomogram_sources"]["df"]
+        for col in ("_tomoJANASImodDir", "_tomoJANASRecTomogram",
+                     "_tomoJANASAliStack", "_tomoJANASXfFile", "_tomoJANASTltFile"):
+            val = str(src_df[col].iloc[0])
+            if val not in ("?", ""):
+                assert os.path.isabs(val), f"{col} must be absolute, got: {val}"
+
+        # internal tilt-series star ref must be relative
+        glob_df = blks["global"]["df"]
+        ts_ref = str(glob_df["_rlnTomoTiltSeriesStarFile"].iloc[0])
+        assert not os.path.isabs(ts_ref), f"tilt-series star ref should be relative: {ts_ref}"
+        # external rec tomogram must be absolute
+        rec_ref = str(glob_df["_rlnTomoReconstructedTomogram"].iloc[0])
+        assert os.path.isabs(rec_ref), f"rec tomogram ref should be absolute: {rec_ref}"
+
+        print("PASS test_external_paths_absolute")
+
+
 def test_validate_strict():
     with tempfile.TemporaryDirectory() as d:
         imod_dir = _make_imod_dir(d)
@@ -432,6 +505,8 @@ TESTS: List[Tuple[str, Callable]] = [
     ("test_imod_mapping_math", test_imod_mapping_math),
     ("test_imod_import", test_imod_import),
     ("test_particles_import", test_particles_import),
+    ("test_rec_crop_writing", test_rec_crop_writing),
+    ("test_external_paths_absolute", test_external_paths_absolute),
     ("test_validate_strict", test_validate_strict),
     ("test_ctf_missing", test_ctf_missing),
     ("test_defocus_unit_conversion", test_defocus_unit_conversion),

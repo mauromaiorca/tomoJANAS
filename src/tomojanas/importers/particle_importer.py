@@ -29,7 +29,13 @@ from tomojanas.models.project import Project, ProjectMissingError
 from tomojanas.metadata.relion_labels import (
     PARTICLE_OPTICS_COLUMNS, PARTICLES_COLUMNS,
     PARTICLE_SOURCE_COLUMNS, PARTICLE_ROI_COLUMNS, PARTICLE_PROJECTION_COLUMNS,
-    ProjectionStatus,
+    PARTICLE_REC_CROP_COLUMNS, ProjectionStatus,
+)
+from tomojanas.io.mrc import (
+    read_mrc_data, read_mrc_slice, write_cropped_mrc_like, write_mrc,
+    precreate_mrc_stack, write_mrc_slice, box_corner,
+    crop_volume_box, crop_image_square,
+    make_spherical_mask, make_circular_mask,
 )
 from tomojanas.geometry.coordinates import (
     rec_voxel_to_relion_centered_angst,
@@ -254,6 +260,43 @@ def import_particles(args) -> int:
     }
 
     # ------------------------------------------------------------------ #
+    # Crop setup (Phase I): load rec volume / open ali stack lazily
+    # ------------------------------------------------------------------ #
+    write_rec_crops = getattr(args, "write_rec_crops", False)
+    write_ali_crops = getattr(args, "write_ali_crops", False)
+    write_raw_crops = getattr(args, "write_raw_crops", False)
+    crop_outside_policy = getattr(args, "crop_outside_policy", "partial") or "partial"
+    crop_pad_value = float(getattr(args, "crop_pad_value", 0.0) or 0.0)
+    apply_sphere_mask = getattr(args, "apply_spherical_mask", False)
+    crop_pad_vox = float(getattr(args, "crop_padding_voxel", 0.0) or 0.0)
+    crop_pad_angst = float(getattr(args, "crop_padding_angst", 0.0) or 0.0)
+    crop_box_override = getattr(args, "crop_storage_box_size", None)
+
+    rec_volume = None
+    rec_crop_dir = os.path.join(proj.tomogram_dir(tomo_name), "individual_particles_recs")
+    ali_crop_dir = os.path.join(proj.tomogram_dir(tomo_name), "individual_particles_raw")
+    raw_crop_dir = os.path.join(proj.tomogram_dir(tomo_name), "individual_particles_raw")
+    if write_rec_crops:
+        rec_path = _resolve_rec_path(rec_tomo_path_str, project_root)
+        if rec_path and rec_hdr is not None:
+            try:
+                rec_volume, _ = read_mrc_data(rec_path)
+                os.makedirs(rec_crop_dir, exist_ok=True)
+                logger.info(f"Loaded rec tomogram for cropping: {rec_path} {rec_volume.shape}")
+            except Exception as exc:
+                logger.warning(f"Cannot load rec tomogram for cropping: {exc}")
+                write_rec_crops = False
+        else:
+            logger.warning("rec tomogram not available; --write-rec-crops ignored")
+            write_rec_crops = False
+
+    if write_ali_crops or write_raw_crops:
+        ali_crop_dir = os.path.join(proj.tomogram_dir(tomo_name), "individual_particles_ali")
+        raw_crop_dir = os.path.join(proj.tomogram_dir(tomo_name), "individual_particles_raw")
+
+    a_rec = rec_hdr.pixel_x if rec_hdr else (a_ali * B_rec_ali)
+
+    # ------------------------------------------------------------------ #
     # Process each particle
     # ------------------------------------------------------------------ #
     all_particle_rows: List[Dict] = []
@@ -307,6 +350,25 @@ def import_particles(args) -> int:
             ali_stack_path, ali_nx, ali_ny, roi_radius_ali_px,
         )
 
+        # --- physical rec crop (Phase I) ---
+        crop_blocks = []
+        if write_rec_crops and rec_volume is not None:
+            crop_row = _write_rec_crop(
+                rec_volume, rec_hdr, rec_crop_dir, pname,
+                x_in, y_in, z_in, indexing,
+                roi_radius_angst, a_rec,
+                crop_box_override, crop_pad_vox, crop_pad_angst,
+                crop_outside_policy, crop_pad_value, apply_sphere_mask,
+                project_root, rec_tomo_path_str, logger,
+            )
+            if crop_row is not None:
+                crop_blocks.append(LoopBlock(
+                    name="tomoJANAS_particle_rec_crop",
+                    columns=PARTICLE_REC_CROP_COLUMNS,
+                    rows=[crop_row],
+                ))
+                generated.append(crop_row["_tomoJANASParticleRecPath"])
+
         # --- individual P*.star ---
         if getattr(args, "write_individual_particles", True):
             p_star_path = os.path.join(ip_dir, f"{pname}.star")
@@ -315,7 +377,7 @@ def import_particles(args) -> int:
                 optics_row, particle_row,
                 x_in, y_in, z_in, coord_system, indexing, axis_order,
                 roi_radius_angst, roi_storage_box_px, roi_radius_ali_px,
-                proj_rows,
+                proj_rows, crop_blocks,
             )
             generated.append(p_star_path)
 
@@ -490,11 +552,94 @@ def _compute_projections(
     return rows
 
 
+def _resolve_rec_path(rec_path_str, project_root):
+    """Resolve the rec tomogram path (absolute, or relative to project root)."""
+    if not rec_path_str or rec_path_str in ("?", ""):
+        return None
+    if os.path.isabs(rec_path_str) and os.path.isfile(rec_path_str):
+        return rec_path_str
+    cand = os.path.join(project_root, rec_path_str)
+    if os.path.isfile(cand):
+        return cand
+    if os.path.isfile(rec_path_str):
+        return os.path.abspath(rec_path_str)
+    return None
+
+
+def _write_rec_crop(
+    rec_volume, rec_hdr, crop_dir, pname,
+    x_in, y_in, z_in, indexing,
+    roi_radius_angst, a_rec,
+    box_override, pad_vox, pad_angst,
+    outside_policy, pad_value, apply_sphere_mask,
+    project_root, rec_source_path, logger,
+):
+    """Crop a cubic storage box around the spherical ROI from the rec tomogram.
+
+    Returns a dict of PARTICLE_REC_CROP_COLUMNS values, or None if skipped.
+    """
+    nz, ny, nx = rec_volume.shape
+    # rec-voxel centre (0-based array index)
+    if indexing == "one-based":
+        xc, yc, zc = float(x_in) - 1.0, float(y_in) - 1.0, float(z_in) - 1.0
+    else:
+        xc, yc, zc = float(x_in), float(y_in), float(z_in)
+    centre_zyx = (zc, yc, xc)
+
+    radius_vox = roi_radius_angst / a_rec if a_rec > 0 else 0.0
+    total_pad_vox = pad_vox + (pad_angst / a_rec if a_rec > 0 else 0.0)
+    if box_override:
+        box = int(box_override)
+    else:
+        box = storage_box_from_radius(radius_vox, total_pad_vox)
+
+    inside = sphere_inside_volume(xc, yc, zc, radius_vox, nx, ny, nz)
+    if not inside:
+        if outside_policy == "error":
+            logger.error(f"{pname}: spherical ROI extends outside the tomogram (policy=error); crop skipped")
+            return None
+        if outside_policy == "skip":
+            logger.warning(f"{pname}: spherical ROI outside tomogram (policy=skip); crop skipped")
+            return None
+        logger.warning(f"{pname}: spherical ROI partially outside tomogram (policy={outside_policy}); padding")
+
+    cube = crop_volume_box(rec_volume, centre_zyx, box, pad_value=pad_value)
+    mask_shape = "none"
+    if apply_sphere_mask:
+        mask = make_spherical_mask(box, radius_vox)
+        cube = np.where(mask, cube, pad_value).astype(np.float32)
+        mask_shape = "sphere"
+
+    crop_origin = box_corner(centre_zyx, box)  # (z0, y0, x0)
+    os.makedirs(crop_dir, exist_ok=True)
+    out_path = os.path.join(crop_dir, f"{pname}_rec.mrc")
+    write_cropped_mrc_like(out_path, cube, rec_hdr, crop_origin,
+                            pixel_size=None, update_origin=True, update_stats=True)
+
+    # crop path is INTERNAL → relative to project root; source tomogram is EXTERNAL → absolute
+    rec_path_rel = pw.store_path(out_path, project_root, relative=True)
+    rec_src_abs = os.path.abspath(rec_source_path) if rec_source_path and rec_source_path not in ("?", "") else "?"
+
+    return {
+        "_tomoJANASParticleRecPath": rec_path_rel,
+        "_tomoJANASParticleRecSourceTomogram": rec_src_abs,
+        "_tomoJANASParticleRecCropOriginX": str(crop_origin[2]),
+        "_tomoJANASParticleRecCropOriginY": str(crop_origin[1]),
+        "_tomoJANASParticleRecCropOriginZ": str(crop_origin[0]),
+        "_tomoJANASParticleRecBoxSizeVoxel": str(box),
+        "_tomoJANASParticleRecRadiusVoxel": f"{radius_vox:.4f}",
+        "_tomoJANASParticleRecRadiusAngst": f"{roi_radius_angst:.4f}",
+        "_tomoJANASParticleRecPixelSize": f"{a_rec:.4f}",
+        "_tomoJANASParticleRecStorageShape": "cube",
+        "_tomoJANASParticleRecMaskShape": mask_shape,
+    }
+
+
 def _write_particle_star(
     path, optics_row, particle_row,
     x_in, y_in, z_in, coord_system, indexing, axis_order,
     roi_radius_angst, storage_box_px, proj_radius_px,
-    proj_rows,
+    proj_rows, crop_blocks=None,
 ):
     pname = particle_row["_rlnTomoParticleName"]
 
@@ -531,6 +676,8 @@ def _write_particle_star(
     if proj_rows:
         blocks.append(LoopBlock(name="tomoJANAS_particle_projections",
                                 columns=PARTICLE_PROJECTION_COLUMNS, rows=proj_rows))
+    if crop_blocks:
+        blocks.extend(crop_blocks)
     write_star(path, blocks)
 
 
