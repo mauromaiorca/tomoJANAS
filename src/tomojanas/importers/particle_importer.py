@@ -611,6 +611,28 @@ def _write_rec_crop(
         xc, yc, zc = float(x_in), float(y_in), float(z_in)
     centre_zyx = (zc, yc, xc)
 
+    # Diagnostic + axis-order sanity: the crop indexes rec_volume[z, y, x],
+    # so (x,y,z) MUST match the rec file's (nx, ny, nz) axes. napari points
+    # are (z,y,x) — a frequent source of swapped X/Z.
+    diag = (f"{pname}: rec (nx,ny,nz)=({nx},{ny},{nz}) pixel={a_rec:.3f} A; "
+            f"picked voxel (x,y,z)=({xc:.0f},{yc:.0f},{zc:.0f})")
+    print("  [crop] " + diag)
+    logger.info(diag)
+    oob = []
+    if not (0 <= xc < nx):
+        oob.append(f"X={xc:.0f}∉[0,{nx})")
+    if not (0 <= yc < ny):
+        oob.append(f"Y={yc:.0f}∉[0,{ny})")
+    if not (0 <= zc < nz):
+        oob.append(f"Z={zc:.0f}∉[0,{nz})")
+    if oob:
+        warn = (f"{pname}: picked voxel outside tomogram on {', '.join(oob)} — "
+                f"likely wrong --axis-order/--indexing. napari picks are z,y,x "
+                f"(use --format napari or --axis-order zyx); IMOD 3dmod is x,y,z "
+                f"1-based (--axis-order xyz --indexing one-based).")
+        print("  [crop] WARNING: " + warn)
+        logger.warning(warn)
+
     radius_vox = roi_radius_angst / a_rec if a_rec > 0 else 0.0
     total_pad_vox = pad_vox + (pad_angst / a_rec if a_rec > 0 else 0.0)
     if box_override:

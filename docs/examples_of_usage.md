@@ -212,6 +212,35 @@ bash replay.sh
 
 ---
 
+## Troubleshooting: the sub-volume is wrong / in the wrong place
+
+The crop indexes the reconstructed tomogram as `rec[z, y, x]`, so the
+`(x, y, z)` you pass **must match the rec file's `(nx, ny, nz)` axes**. The
+most common cause of a wrong crop is a swapped axis order from the picking tool:
+
+| Picking tool | Coordinate order | Indexing | Use |
+|--------------|------------------|----------|-----|
+| **napari** (Points layer) | `(z, y, x)` = axis-0,1,2 | zero-based | `--format napari` (CSV) **or** `--axis-order zyx` (single point) |
+| **IMOD 3dmod** | `(x, y, z)` | one-based | `--axis-order xyz --indexing one-based` |
+| generic CSV `x,y,z` | `(x, y, z)` | as produced | `--axis-order xyz` |
+
+When you run a crop, tomoJANAS prints a diagnostic line, e.g.:
+
+```
+[crop] P000001: rec (nx,ny,nz)=(960,928,300) pixel=10.480 A; picked voxel (x,y,z)=(161,678,170)
+```
+
+Check that each picked value falls inside its axis range. If you see a warning
+like `picked voxel outside tomogram on Z=678∉[0,300)`, your X and Z are almost
+certainly swapped — re-run with the correct `--axis-order` (e.g. `zyx` for
+napari). The same diagnostic is written to `logs/tomojanas_import.log`.
+
+> Note: coordinates are always in **voxels (pixels)** of the reconstructed
+> tomogram when using `--coordinate-system rec-voxel`. That part is correct;
+> it is the *order* of the three numbers that usually needs fixing.
+
+---
+
 ## 8. Legacy quick extraction (no project)
 
 The original command still works for ad-hoc sub-volume extraction:
