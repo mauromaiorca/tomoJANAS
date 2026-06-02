@@ -91,19 +91,14 @@ janas_core = Extension(
 )
 
 setup(
-    name='janas',
-    version='2.1.5',
-    description='Pipeline for per-particle selection and 3D class reassignment in single-particle cryo-EM.',
+    name='tomojanas',
+    version='0.1.0',
+    description='Sub-volume extraction and analysis pipeline for Electron Tomography.',
     author='Mauro Maiorca',
     author_email='mauro.maiorca@cssb-hamburg.de',
-    url='https://gitlab.com/topf-lab/janas',
     python_requires='>=3.8',
     install_requires=read_requirements('requirements.txt'),
     extras_require={
-        # GPU support for janas_reconstructor (used when --noExternalPrograms
-        # --gpu N is set). Pulls torch from the default PyPI index. For a
-        # specific CUDA build, install torch manually with --index-url
-        # https://download.pytorch.org/whl/cuXYZ before/after this package.
         'gpu': ['torch>=2.0'],
     },
     packages=find_packages(where='src', include=['janas*']),
@@ -114,19 +109,13 @@ setup(
     package_data={'janas': ['config.json', 'bin/*', 'images/*.png']},
     entry_points={
         'console_scripts': [
-            'janas = janas.janas_cmd_caller:main',
-            'janas_utils = janas.janas_cmd_utils:main',
-            'janas_optimizer = janas.janas_cmd_optimizer:main',
-            'janas_session_manager = janas.janas_cmd_session_manager:main',
-            'janas_reconstructor = janas.janas_reconstructor:main',
-            'janas_app_meanMinMax = janas.bin_wrapper:meanMinMax_main',
-            'janas_app_starProcess = janas.bin_wrapper:starProcess_main',
+            'tomojanas = janas.tomojanas_cmd_caller:main',
         ],
     },
     license='MIT',
     zip_safe=False,
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',

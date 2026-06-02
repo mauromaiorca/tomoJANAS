@@ -1,14 +1,14 @@
 # Contributing
 
-Contributions to JANAS are welcome. This guide covers the basics of setting up a development environment and submitting changes.
+Contributions to tomoJANAS are welcome. This guide covers the basics of setting up a development environment and submitting changes.
 
 ## Development setup
 
 ```bash
-git clone https://github.com/mauromaiorca/janas.git
-cd janas
-python3 -m venv .janas_env
-source .janas_env/bin/activate
+git clone <repo-url>
+cd tomoJANAS
+python3 -m venv .tomojanas_env
+source .tomojanas_env/bin/activate
 pip install -e .
 ```
 
@@ -26,9 +26,9 @@ python setup.py build_ext --inplace
 
 ## Reporting issues
 
-Open an issue on [GitHub](https://github.com/mauromaiorca/janas/issues) with:
+Open an issue with:
 
 - What you were trying to do
 - The command you ran
 - The error message or unexpected behaviour
-- Your OS, Python version, and JANAS version (`janas --version`)
+- Your OS, Python version, and tomoJANAS version (`tomojanas --version`)

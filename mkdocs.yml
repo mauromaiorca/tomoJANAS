@@ -1,8 +1,8 @@
-site_name: JANAS
-site_description: Joint ANAlysis of Stacks for CryoEM
-site_url: https://mauromaiorca.github.io/janas/
-repo_url: https://github.com/mauromaiorca/janas
-repo_name: mauromaiorca/janas
+site_name: tomoJANAS
+site_description: Sub-volume extraction and analysis for Electron Tomography
+site_url: ""
+repo_url: ""
+repo_name: ""
 
 theme:
   name: material

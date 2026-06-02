@@ -17,7 +17,7 @@ except ImportError:
 
 def get_version():
     try:
-        return version("janas")
+        return version("tomojanas")
     except PackageNotFoundError:
         return "0.0.0"
 
