@@ -18,6 +18,30 @@ Editable mode (`-e`) means changes to Python code take effect immediately. If yo
 python setup.py build_ext --inplace
 ```
 
+## Project structure
+
+The codebase has two Python packages under `src/`:
+
+- **`janas/`** — legacy SPA code inherited from the JANAS fork (C extension, reconstruction, scoring).
+- **`tomojanas/`** — new ET import framework (MRC I/O, multi-block STAR, project layout, importers, geometry).
+
+New ET-related code should go into `tomojanas/`. The `janas` package is kept for backward compatibility (the `tomojanas import_volume` legacy command still uses it).
+
+## Running tests
+
+Tests are self-contained scripts (no pytest runner required):
+
+```bash
+python tests/test_tomojanas_mrc.py
+```
+
+Each test file can also be discovered by pytest if you prefer:
+
+```bash
+pip install pytest
+pytest tests/
+```
+
 ## Submitting changes
 
 1. Fork the repository and create a branch for your changes.
