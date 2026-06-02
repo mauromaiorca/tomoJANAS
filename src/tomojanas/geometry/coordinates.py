@@ -86,21 +86,27 @@ def relion_centered_angst_to_rec_voxel(
 def normalise_coordinate_order(
     values: Sequence[float], axis_order: str
 ) -> Tuple[float, float, float]:
-    """Reorder coordinates from axis_order convention to (x, y, z).
+    """Reorder coordinates from ``axis_order`` convention to ``(x, y, z)``.
 
-    Supported: "xyz", "zyx", "yxz".
+    ``axis_order`` is any permutation of the letters x, y, z describing the
+    order in which the three input values are given. All 6 permutations are
+    supported (``xyz``, ``xzy``, ``yxz``, ``yzx``, ``zxy``, ``zyx``).
+
+    Example: ``axis_order="xzy"`` means the inputs are (X, Z, Y) — the common
+    case for IMOD 3dmod readouts of a "flipped" tomogram, where Y and Z are
+    swapped relative to the file's axes.
     """
     v = list(values)
     if len(v) < 3:
         raise ValueError(f"need at least 3 values, got {len(v)}")
-    ao = axis_order.lower()
-    if ao == "xyz":
-        return float(v[0]), float(v[1]), float(v[2])
-    if ao == "zyx":
-        return float(v[2]), float(v[1]), float(v[0])
-    if ao == "yxz":
-        return float(v[1]), float(v[0]), float(v[2])
-    raise ValueError(f"unsupported axis_order: {axis_order!r}; use 'xyz', 'zyx', or 'yxz'")
+    ao = str(axis_order).lower()
+    if sorted(ao) != ["x", "y", "z"]:
+        raise ValueError(
+            f"unsupported axis_order: {axis_order!r}; must be a permutation of "
+            f"'x', 'y', 'z' (e.g. xyz, xzy, zyx)"
+        )
+    m = {ao[i]: float(v[i]) for i in range(3)}
+    return m["x"], m["y"], m["z"]
 
 
 def coordinate_roundtrip_error(

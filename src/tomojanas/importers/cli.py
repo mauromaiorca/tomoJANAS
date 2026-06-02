@@ -108,7 +108,11 @@ def _build_parser() -> argparse.ArgumentParser:
                         choices=["auto", "rec-voxel", "ali-pixel", "raw-pixel",
                                  "relion-centered-angst", "imod-model"])
     part_p.add_argument("--indexing", default="auto", choices=["auto", "zero-based", "one-based"])
-    part_p.add_argument("--axis-order", default="auto", choices=["auto", "xyz", "zyx", "yxz"])
+    part_p.add_argument("--axis-order", default="auto",
+                        choices=["auto", "xyz", "xzy", "yxz", "yzx", "zxy", "zyx"],
+                        help="order of the input coordinate columns. IMOD 3dmod "
+                             "readouts of a flipped tomogram are usually 'xzy' "
+                             "(Y and Z swapped); napari points are 'zyx'.")
     part_p.add_argument("--roi-shape", default="sphere")
     part_p.add_argument("--projection-roi-shape", default="circle")
     part_p.add_argument("--roi-radius-angst", type=float, default=None)

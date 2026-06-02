@@ -221,8 +221,19 @@ most common cause of a wrong crop is a swapped axis order from the picking tool:
 | Picking tool | Coordinate order | Indexing | Use |
 |--------------|------------------|----------|-----|
 | **napari** (Points layer) | `(z, y, x)` = axis-0,1,2 | zero-based | `--format napari` (CSV) **or** `--axis-order zyx` (single point) |
-| **IMOD 3dmod** | `(x, y, z)` | one-based | `--axis-order xyz --indexing one-based` |
+| **IMOD 3dmod**, flipped tomogram (typical) | `(x, z, y)` — Y/Z swapped vs file | one-based | `--axis-order xzy --indexing one-based` |
+| **IMOD 3dmod**, non-flipped | `(x, y, z)` | one-based | `--axis-order xyz --indexing one-based` |
 | generic CSV `x,y,z` | `(x, y, z)` | as produced | `--axis-order xyz` |
+
+> **IMOD note:** IMOD reconstructions are usually stored "flipped" (the file's
+> Y axis is the depth/thickness). 3dmod displays them in the natural
+> orientation, so the X/Y/Z you read from the **Zap window** are *display*
+> coordinates with **Y and Z swapped** relative to the file. Pasting them
+> directly therefore needs `--axis-order xzy`. Also, 3dmod coordinates are
+> **1-based**, so use `--indexing one-based`. Confirm with the `[crop]`
+> diagnostic that no coordinate is out of range.
+
+All six axis-order permutations are accepted: `xyz, xzy, yxz, yzx, zxy, zyx`.
 
 When you run a crop, tomoJANAS prints a diagnostic line, e.g.:
 
