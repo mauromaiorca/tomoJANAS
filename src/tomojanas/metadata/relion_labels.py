@@ -62,6 +62,10 @@ TOMOGRAMS_SOURCE_COLUMNS = [
     "_tomoJANASMicrographReference",
     "_tomoJANASCtfSource",
     "_tomoJANASCtfPremultiplied",
+    "_tomoJANASImportOffsetX",
+    "_tomoJANASImportOffsetY",
+    "_tomoJANASImportOffsetZ",
+    "_tomoJANASRelionGeometryStatus",
 ]
 
 # --------------------------------------------------------------------------- #
@@ -110,7 +114,15 @@ TILT_MAPPING_COLUMNS = [
     "_tomoJANASXfDX",
     "_tomoJANASXfDY",
     "_tomoJANASXfDirection",
+    "_tomoJANASXfDirectionStatus",
 ]
+
+# tilt_series/<tomo>.star :: data_tomoJANAS_projection_matrices (4x4 world->image,
+# stored as scalar columns when the STAR writer cannot emit vector-valued fields)
+PROJECTION_MATRIX_COLUMNS = (
+    ["_tomoJANASTiltIndex"]
+    + [f"_tomoJANASProj{r}{c}" for r in range(4) for c in range(4)]
+)
 
 # --------------------------------------------------------------------------- #
 # CTF per-tilt RELION-compatible tags
@@ -134,6 +146,20 @@ CTF_COLUMNS = [
 OPTIMISATION_SET_COLUMNS = [
     "_rlnTomoTomogramsFile",
     "_rlnTomoParticlesFile",
+]
+
+# --------------------------------------------------------------------------- #
+# particles_all.star and individual P*.star :: data_optics (RELION block)
+# RELION tomography particle STAR files require BOTH data_optics and
+# data_particles. data_optics must carry at least the pixel size + CTF basics.
+# --------------------------------------------------------------------------- #
+PARTICLE_OPTICS_COLUMNS = [
+    "_rlnOpticsGroup",
+    "_rlnOpticsGroupName",
+    "_rlnTomoTiltSeriesPixelSize",
+    "_rlnVoltage",
+    "_rlnSphericalAberration",
+    "_rlnAmplitudeContrast",
 ]
 
 # --------------------------------------------------------------------------- #
@@ -202,6 +228,7 @@ PARTICLE_PROJECTION_COLUMNS = [
     "_tomoJANASRawRadiusPixel",
     "_tomoJANASRawCircleInsideFrame",
     "_tomoJANASVisibleInTilt",
+    "_tomoJANASProjectionStatus",
     "_tomoJANASDefocusU",
     "_tomoJANASDefocusV",
     "_tomoJANASDefocusAngle",
@@ -221,3 +248,39 @@ PARTICLE_REC_CROP_COLUMNS = [
     "_tomoJANASParticleRecStorageShape",
     "_tomoJANASParticleRecMaskShape",
 ]
+
+
+# --------------------------------------------------------------------------- #
+# Status vocabularies
+# --------------------------------------------------------------------------- #
+class RelionGeometryStatus:
+    """Allowed values for _tomoJANASRelionGeometryStatus.
+
+    The project is only marked RELION-extraction-ready when faithful 4x4
+    world->image projection matrices are present in the RELION columns AND
+    validated. Matrices built by the ported IMOD algorithm but not externally
+    validated are flagged ``relion_imod_algorithm_ported``.
+    """
+    EXTRACT_READY = "relion_extract_ready"
+    ALGORITHM_PORTED = "relion_imod_algorithm_ported"
+    MATRICES_MISSING = "projection_matrices_missing"
+    MATRICES_UNVALIDATED = "projection_matrices_unvalidated"
+    MATRICES_APPROXIMATE = "projection_matrices_approximate"
+    VALIDATION_FAILED = "relion_validation_failed"
+    TOMOJANAS_VALID_ONLY = "tomojanas_valid_only"
+
+
+class XfDirectionStatus:
+    """Allowed values for _tomoJANASXfDirectionStatus."""
+    EXPLICIT = "explicit"
+    INFERRED_FROM_NEWST = "inferred_from_newst"
+    ASSUMED_DEFAULT = "assumed_default"
+    AMBIGUOUS = "ambiguous"
+
+
+class ProjectionStatus:
+    """Allowed values for _tomoJANASProjectionStatus (per particle/tilt)."""
+    OK = "ok"
+    OUTSIDE_FRAME = "outside_frame"
+    MISSING = "projection_unavailable"
+    APPROXIMATE = "approximate"

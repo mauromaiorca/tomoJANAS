@@ -74,6 +74,20 @@ def _build_parser() -> argparse.ArgumentParser:
     imod_p.add_argument("--premultiply-ctf", dest="do_not_premultiply", action="store_false")
     # micrograph reference
     imod_p.add_argument("--micrograph-reference", default="ali", choices=["ali", "raw"])
+    # IMOD geometry flags (for RELION mapping port)
+    imod_p.add_argument("--flip-yz", action="store_true", default=False)
+    imod_p.add_argument("--flip-z", action="store_true", default=False)
+    imod_p.add_argument("--flip-angles", action="store_true", default=False)
+    imod_p.add_argument("--thickness-override", type=float, default=None)
+    imod_p.add_argument("--import-offset-x", type=float, default=0.0)
+    imod_p.add_argument("--import-offset-y", type=float, default=0.0)
+    imod_p.add_argument("--import-offset-z", type=float, default=0.0)
+    # Optional RELION oracle validation
+    imod_p.add_argument("--compare-with-relion-import", action="store_true", default=False)
+    imod_p.add_argument("--relion-binary", default="relion_tomo_import_tomograms",
+                        help="RELION binary for oracle validation")
+    imod_p.add_argument("--relion-import-workdir", default=None)
+    imod_p.add_argument("--relion-projection-tolerance-pixel", type=float, default=0.5)
     # validation
     _add_validation_args(imod_p)
 
@@ -198,31 +212,23 @@ def _add_validation_args(p: argparse.ArgumentParser) -> None:
 # sub-command dispatchers (stubs — implementations in later phases)
 # ------------------------------------------------------------------ #
 def _cmd_imod(args: argparse.Namespace) -> int:
-    print(f"[tomojanas-import imod] not yet implemented (Phase 3)")
-    print(f"  project    = {args.project}")
-    print(f"  imod-dir   = {args.imod_dir}")
-    print(f"  tomo-name  = {args.tomo_name}")
-    return 1
+    from tomojanas.importers.imod_importer import import_imod_project
+    return import_imod_project(args)
 
 
 def _cmd_particles(args: argparse.Namespace) -> int:
-    print(f"[tomojanas-import particles] not yet implemented (Phase 4)")
-    print(f"  project    = {args.project}")
-    print(f"  tomo-name  = {args.tomo_name}")
-    return 1
+    from tomojanas.importers.particle_importer import import_particles
+    return import_particles(args)
 
 
 def _cmd_ctf(args: argparse.Namespace) -> int:
-    print(f"[tomojanas-import ctf] not yet implemented (Phase 6)")
-    print(f"  project    = {args.project}")
-    print(f"  tomo-name  = {args.tomo_name}")
-    return 1
+    from tomojanas.importers.ctf_importer import import_ctf
+    return import_ctf(args)
 
 
 def _cmd_validate(args: argparse.Namespace) -> int:
-    print(f"[tomojanas-import validate] not yet implemented (Phase 7)")
-    print(f"  project    = {args.project}")
-    return 1
+    from tomojanas.importers.validators import validate_project_cli
+    return validate_project_cli(args)
 
 
 _DISPATCH = {
