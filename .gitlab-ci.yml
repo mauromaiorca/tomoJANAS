@@ -1,0 +1,54 @@
+stages:
+  - build
+  - publish
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+
+.build_wheel:
+  stage: build
+  image: python:3.11
+  before_script:
+    - pip install cibuildwheel==2.21.3
+  script:
+    - cibuildwheel --output-dir wheelhouse
+  artifacts:
+    paths:
+      - wheelhouse/*.whl
+    expire_in: 1 week
+
+build:linux:
+  extends: .build_wheel
+  image: python:3.11
+  variables:
+    CIBW_BUILD: "cp38-manylinux* cp39-manylinux* cp310-manylinux* cp311-manylinux* cp312-manylinux*"
+    CIBW_ARCHS_LINUX: "x86_64"
+    CIBW_BEFORE_ALL_LINUX: "yum install -y cmake gcc-c++ || apt-get update && apt-get install -y cmake g++"
+  tags:
+    - docker
+
+build:sdist:
+  stage: build
+  image: python:3.11
+  script:
+    - pip install build
+    - python -m build --sdist
+  artifacts:
+    paths:
+      - dist/*.tar.gz
+    expire_in: 1 week
+
+publish:pypi:
+  stage: publish
+  image: python:3.11
+  dependencies:
+    - build:linux
+    - build:sdist
+  script:
+    - pip install twine
+    - twine upload wheelhouse/*.whl dist/*.tar.gz
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+  variables:
+    TWINE_USERNAME: __token__
+    TWINE_PASSWORD: $PYPI_TOKEN

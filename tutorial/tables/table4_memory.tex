@@ -1,0 +1,38 @@
+% Table 4: JANAS Memory Estimates
+% For Nature Structural & Molecular Biology
+% Requires: booktabs, array, siunitx packages
+%
+% Usage: \input{table4_memory.tex}
+
+\begin{table}[!ht]
+\caption{\textbf{Memory requirements by box size.}
+Estimated memory footprint for key JANAS data structures at representative box sizes ($B$). Particle stack sizes on disk scale with both $N$ (particle count) and $B$.}
+\label{tab:memory}
+\centering
+\small
+
+\begin{tabular}{@{}l l r r r r@{}}
+\toprule
+\textbf{Component} & \textbf{Formula} & \textbf{$B$=200} & \textbf{$B$=256} & \textbf{$B$=320} & \textbf{$B$=400} \\
+\midrule
+Reference volume       & $B^3 \times 4$\,B        & 31\,MB  & 64\,MB  & 125\,MB & 244\,MB \\
+GPU accumulator        & $B^3 \times 12$\,B       & 92\,MB  & 192\,MB & 375\,MB & 732\,MB \\
+Particle batch (GPU)   & $20 \times B^2 \times 4$\,B & 3\,MB & 5\,MB   & 8\,MB   & 12\,MB  \\
+Half-maps (local res.) & $2 \times B^3 \times 4$\,B  & 61\,MB & 128\,MB & 250\,MB & 488\,MB \\
+\bottomrule
+\end{tabular}
+
+\vspace{8pt}
+
+\begin{tabular}{@{}r r r r r@{}}
+\toprule
+\textbf{$N$ particles} & \textbf{$B$=200} & \textbf{$B$=256} & \textbf{$B$=320} & \textbf{$B$=400} \\
+\midrule
+88k   & 13\,GB  & 22\,GB  & 34\,GB  & 54\,GB  \\
+192k  & 29\,GB  & 48\,GB  & 75\,GB  & 117\,GB \\
+458k  & 70\,GB  & 114\,GB & 179\,GB & 280\,GB \\
+730k  & 111\,GB & 182\,GB & 285\,GB & 446\,GB \\
+882k  & 135\,GB & 220\,GB & 345\,GB & 539\,GB \\
+\bottomrule
+\end{tabular}
+\end{table}

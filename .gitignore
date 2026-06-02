@@ -1,0 +1,30 @@
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.so
+*.dylib
+
+# Compiled C++ binaries (built by setup.py)
+src/cryojanas/bin/
+src/janas/bin/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.cryojanas_env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# MkDocs build output
+site/
+
+# OS
+.DS_Store

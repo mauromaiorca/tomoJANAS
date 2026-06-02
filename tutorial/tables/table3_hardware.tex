@@ -1,0 +1,24 @@
+% Table 3: JANAS Hardware Requirements
+% For Nature Structural & Molecular Biology
+% Requires: booktabs, array packages
+%
+% Usage: \input{table3_hardware.tex}
+
+\begin{table}[!ht]
+\caption{\textbf{Hardware requirements for JANAS.}
+Minimum configuration supports small datasets ($<$50k particles); recommended configuration targets production use with 100k--900k particles.}
+\label{tab:hardware}
+\centering
+\small
+\begin{tabular}{@{}l l l p{5.5cm}@{}}
+\toprule
+\textbf{Component} & \textbf{Minimum} & \textbf{Recommended} & \textbf{Rationale} \\
+\midrule
+CPU cores   & 4       & 32--80     & Scoring and local resolution scale near-linearly with core count \\[4pt]
+RAM         & 16\,GB  & 64--128\,GB & Proportional to $N \times B^2$; each worker loads particle images \\[4pt]
+GPU         & ---     & 1$\times$ A100/V100 & Accelerates reconstruction 5--20$\times$ versus multi-core CPU \\[4pt]
+GPU VRAM    & ---     & $\geq$16\,GB & Required for $B > 300$\,px with CTF; accumulator uses $B^3 \times 12$\,bytes \\[4pt]
+Storage     & 50\,GB  & $\geq$500\,GB & Particle stacks: $N \times B^2 \times 4$\,bytes (e.g., 200k at 256\,px $\approx$ 50\,GB) \\
+\bottomrule
+\end{tabular}
+\end{table}

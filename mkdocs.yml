@@ -1,0 +1,64 @@
+site_name: JANAS
+site_description: Joint ANAlysis of Stacks for CryoEM
+site_url: https://mauromaiorca.github.io/janas/
+repo_url: https://github.com/mauromaiorca/janas
+repo_name: mauromaiorca/janas
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quick start: quick-start.md
+  - Workflows:
+      - Iterative particle selection: workflows/selection.md
+      - 3D class reassignment: workflows/classification.md
+      - CryoSPARC integration: workflows/cryosparc.md
+  - Reference:
+      - CLI commands: reference/cli.md
+      - STAR file operations: reference/star-operations.md
+      - Computational requirements: reference/computational-requirements.md
+  - Examples:
+      - "EMPIAR-10308: Serotonin receptor": examples/empiar-10308.md
+  - Troubleshooting: troubleshooting.md
+  - Citation: citation.md

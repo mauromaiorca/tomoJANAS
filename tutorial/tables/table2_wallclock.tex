@@ -1,0 +1,49 @@
+% Table 2: JANAS Representative Wall-Clock Times
+% For Nature Structural & Molecular Biology
+% Requires: booktabs, array, siunitx packages
+%
+% Usage: \input{table2_wallclock.tex}
+%
+% NOTE: Replace "---" placeholders with measured values from
+% benchmarks/benchmark_single_iteration.sh and
+% benchmarks/benchmark_classification.sh
+
+\begin{table}[!ht]
+\caption{\textbf{Representative wall-clock times for one JANAS selection iteration.}
+Measured on [HARDWARE DESCRIPTION, e.g., 40-core Intel Xeon, 2$\times$ NVIDIA A100].
+Dataset: [DATASET DESCRIPTION, e.g., EMPIAR-XXXXX, $N$ particles, $B$\,px box].}
+\label{tab:wallclock}
+\centering
+\small
+\begin{tabular}{@{}l r r l@{}}
+\toprule
+\textbf{Step} & \textbf{Time (s)} & \textbf{\% iter.} & \textbf{Hardware} \\
+\midrule
+Randomize halves          & ---   & ---   & CPU \\
+Reconstruction (bootstrap)& ---  & ---   & GPU $\times$ 2 \\
+Particle scoring (SCI)    & ---   & ---   & CPU $\times$ 80 \\
+Reconstruction (15 subsets)& ---  & ---   & GPU $\times$ 2 \\
+Local resolution (15 pairs)& ---  & ---   & CPU $\times$ 80 \\
+Statistics + optimization  & ---  & ---   & CPU \\
+\midrule
+\textbf{Total (1 iteration)} & \textbf{---} & \textbf{100\%} & \\
+\bottomrule
+\end{tabular}
+
+\vspace{6pt}
+
+\begin{tabular}{@{}l r r l@{}}
+\toprule
+\multicolumn{4}{@{}l}{\textit{3D class reassignment ($K = 4$ maps)}} \\
+\midrule
+\textbf{Step} & \textbf{Time (s)} & \textbf{\% total} & \textbf{Hardware} \\
+\midrule
+Amplitude equalization    & ---   & ---   & CPU \\
+Particle scoring ($K$ maps)& ---  & ---   & CPU $\times$ 80 \\
+Merge + extract classes    & ---  & ---   & CPU \\
+Reconstruction ($K$ classes)& --- & ---   & GPU $\times$ 2 \\
+\midrule
+\textbf{Total (classification)} & \textbf{---} & \textbf{100\%} & \\
+\bottomrule
+\end{tabular}
+\end{table}

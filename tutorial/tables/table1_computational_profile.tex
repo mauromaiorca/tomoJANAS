@@ -1,0 +1,27 @@
+% Table 1: JANAS Computational Profile
+% For Nature Structural & Molecular Biology
+% Requires: booktabs, array packages
+%
+% Usage: \input{table1_computational_profile.tex}
+
+\begin{table*}[!ht]
+\caption{\textbf{JANAS computational profile.}
+Per-step algorithmic complexity, parallelization strategy, and invocation frequency for the iterative particle selection and 3D class reassignment workflows.
+$N$: number of particles; $B$: box size (px); $P$: CPU processes; $S$: number of half-map pairs ($\approx$15); $V$: volume size (px); $d$: sampling interval (px); $R$: local-FSC window radius (px); $K$: number of reference maps.}
+\label{tab:computational_profile}
+\centering
+\small
+\begin{tabular}{@{}l l l l c c@{}}
+\toprule
+\textbf{Step} & \textbf{Algorithm} & \textbf{Complexity} & \textbf{Parallelization} & \textbf{Selection} & \textbf{Classification} \\
+              &                    &                     &                          & \textbf{(per iter.)} & \textbf{($K$ maps)} \\
+\midrule
+Particle scoring  & SCI via 3D$\to$2D projection       & $O(NB^3/P)$               & CPU multiprocessing          & $1$       & $K$ \\[4pt]
+3D reconstruction & Direct Fourier insertion             & $O(NB^2 \log B)$          & CUDA mini-batch              & $1 + S$   & $K$ \\
+                  &                                      &                           & \textit{or} CPU multiprocessing &         &     \\[4pt]
+Local resolution  & Windowed local FSC                   & $O\!\left(\frac{S(V/d)^3 R^3 \log R}{P}\right)$ & CPU multiprocessing & $\sim\!15$ pairs & --- \\[4pt]
+Amplitude         & Fourier amplitude                    & $O(KB^3 \log B)$          & Serial                       & ---       & $1$ \\
+\quad equalization & \quad averaging                     &                           &                              &           &     \\
+\bottomrule
+\end{tabular}
+\end{table*}

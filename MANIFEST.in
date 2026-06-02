@@ -1,0 +1,4 @@
+include CMakeLists.txt
+include requirements.txt
+recursive-include src/src_cpp *.cpp *.cxx *.h *.c
+recursive-include src/janas *.py *.sh *.json

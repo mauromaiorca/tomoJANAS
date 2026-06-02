@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "JANAS: Joint ANAlysis of Stacks for CryoEM"
+type: software
+authors:
+  - family-names: Maiorca
+    given-names: Mauro
+    email: mauro.maiorca@cssb-hamburg.de
+repository-code: https://github.com/mauromaiorca/janas
+license: MIT
+version: 2.1.5
+date-released: 2025-01-01
