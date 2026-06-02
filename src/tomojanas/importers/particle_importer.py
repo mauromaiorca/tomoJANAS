@@ -11,8 +11,10 @@ Writes:
 """
 from __future__ import annotations
 
+import glob
 import math
 import os
+import re
 import sys
 from typing import Dict, List, Optional, Tuple
 
@@ -234,16 +236,25 @@ def import_particles(args) -> int:
     particle_name_override = getattr(args, "particle_name", None)
     start_id = int(getattr(args, "start_particle_id", 1) or 1)
 
-    # Find next free ID
+    # Determine the next free particle ID by scanning existing P*.star files,
+    # so re-running an import ADDS new particles instead of overwriting. The
+    # numbering starts at max(--start-particle-id, highest_existing_id + 1).
     ip_dir = pw.individual_particles_dir(project_root, tomo_name)
     os.makedirs(ip_dir, exist_ok=True)
-    next_id = start_id
     if len(coords_raw) == 1 and particle_name_override:
         particle_names = [particle_name_override]
     else:
-        particle_names = []
-        for i in range(len(coords_raw)):
-            particle_names.append(f"{particle_prefix}{next_id + i:06d}")
+        next_id = max(start_id, _next_free_particle_id(ip_dir, particle_prefix))
+        particle_names = [
+            f"{particle_prefix}{next_id + i:06d}" for i in range(len(coords_raw))
+        ]
+        if next_id != start_id:
+            logger.info(
+                f"Existing particles found; numbering continues at "
+                f"{particle_prefix}{next_id:06d}"
+            )
+    # rebind start id so per-particle id matches the chosen names
+    next_id = int(re.sub(r"^\D*", "", particle_names[0]) or start_id) if particle_names else start_id
 
     # ------------------------------------------------------------------ #
     # Optics group
@@ -550,6 +561,20 @@ def _compute_projections(
             "_tomoJANASDefocusAngle": "?",
         })
     return rows
+
+
+def _next_free_particle_id(ip_dir: str, prefix: str) -> int:
+    """Return highest existing particle id + 1 (1 if none), scanning
+    ``<prefix><digits>.star`` files in ``ip_dir``."""
+    if not os.path.isdir(ip_dir):
+        return 1
+    pat = re.compile(r"^" + re.escape(prefix) + r"(\d+)\.star$")
+    max_id = 0
+    for path in glob.glob(os.path.join(ip_dir, f"{prefix}*.star")):
+        m = pat.match(os.path.basename(path))
+        if m:
+            max_id = max(max_id, int(m.group(1)))
+    return max_id + 1
 
 
 def _resolve_rec_path(rec_path_str, project_root):

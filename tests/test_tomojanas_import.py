@@ -89,21 +89,14 @@ def _make_imod_dir(d):
 
 
 def _run_cmd(argv):
-    parser = _build_parser()
-    args = parser.parse_args(argv)
-    if args.subcommand == "imod":
-        from tomojanas.importers.imod_importer import import_imod_project
-        return import_imod_project(args)
-    elif args.subcommand == "particles":
-        from tomojanas.importers.particle_importer import import_particles
-        return import_particles(args)
-    elif args.subcommand == "ctf":
-        from tomojanas.importers.ctf_importer import import_ctf
-        return import_ctf(args)
-    elif args.subcommand == "validate":
-        from tomojanas.importers.validators import validate_project_cli
-        return validate_project_cli(args)
-    return 1
+    """Run a command through the real CLI entry point (so command logging and
+    dispatch are exercised). Returns the exit code."""
+    from tomojanas.importers.cli import main as _main
+    try:
+        _main(argv)
+        return 0
+    except SystemExit as exc:
+        return int(exc.code) if exc.code is not None else 0
 
 
 # --------------------------------------------------------------------------- #
@@ -309,6 +302,70 @@ def test_external_paths_absolute():
         print("PASS test_external_paths_absolute")
 
 
+def test_particle_autoincrement_and_command_log():
+    """Re-running a single-point import adds P000002 (not overwrite), and each
+    command is appended to logs/commands.{sh,jsonl} with its exit status."""
+    with tempfile.TemporaryDirectory() as d:
+        imod_dir = _make_imod_dir(d)
+        project = os.path.join(d, "project")
+        _run_cmd(["imod", "--project", project, "--create-if-missing",
+                   "--imod-dir", imod_dir, "--tomo-name", TOMO_NAME])
+        _run_cmd(["particles", "--project", project, "--tomo-name", TOMO_NAME,
+                   "--input-single-point", "8,8,4", "--coordinate-system", "rec-voxel",
+                   "--indexing", "zero-based", "--roi-radius-angst", "8"])
+        _run_cmd(["particles", "--project", project, "--tomo-name", TOMO_NAME,
+                   "--input-single-point", "8,8,4", "--coordinate-system", "rec-voxel",
+                   "--indexing", "zero-based", "--roi-radius-angst", "16"])
+
+        ip = os.path.join(project, "tilt_series", TOMO_NAME, "individual_particles")
+        names = sorted(f for f in os.listdir(ip) if f.endswith(".star"))
+        assert names == ["P000001.star", "P000002.star"], names
+
+        # command log exists and records all three invocations
+        sh = os.path.join(project, "logs", "commands.sh")
+        jsonl = os.path.join(project, "logs", "commands.jsonl")
+        assert os.path.isfile(sh) and os.path.isfile(jsonl)
+        with open(jsonl) as f:
+            entries = [json.loads(ln) for ln in f if ln.strip()]
+        assert len(entries) == 3, f"expected 3 logged commands, got {len(entries)}"
+        assert all("exit_status" in e and "command" in e for e in entries)
+        assert entries[0]["argv"][0] == "imod"
+        print("PASS test_particle_autoincrement_and_command_log")
+
+
+def test_status_scan_and_sync():
+    """status detects an orphaned registry entry after manual deletion, and
+    --sync rebuilds particles_all.star from the P*.star files on disk."""
+    from tomojanas.models.project import Project
+    from tomojanas.importers.status import scan_project, sync_particles_all
+
+    with tempfile.TemporaryDirectory() as d:
+        imod_dir = _make_imod_dir(d)
+        project = os.path.join(d, "project")
+        _run_cmd(["imod", "--project", project, "--create-if-missing",
+                   "--imod-dir", imod_dir, "--tomo-name", TOMO_NAME])
+        for pt in ("8,8,4", "9,9,4"):
+            _run_cmd(["particles", "--project", project, "--tomo-name", TOMO_NAME,
+                       "--input-single-point", pt, "--coordinate-system", "rec-voxel",
+                       "--indexing", "zero-based", "--roi-radius-angst", "8"])
+
+        ip = os.path.join(project, "tilt_series", TOMO_NAME, "individual_particles")
+        os.remove(os.path.join(ip, "P000001.star"))  # manual deletion
+
+        proj = Project(root=os.path.abspath(project))
+        rep = scan_project(proj, tomo_name=TOMO_NAME)
+        assert rep["n_issues"] == 1, rep
+        issue = rep["tomograms"][0]["issues"][0]
+        assert issue["particle"] == "P000001"
+        assert issue["issue"] == "registered_but_no_star"
+
+        n = sync_particles_all(proj, [TOMO_NAME])
+        assert n == 1, f"after sync particles_all should have 1 row, got {n}"
+        rep2 = scan_project(proj, tomo_name=TOMO_NAME)
+        assert rep2["n_issues"] == 0, rep2
+        print("PASS test_status_scan_and_sync")
+
+
 def test_validate_strict():
     with tempfile.TemporaryDirectory() as d:
         imod_dir = _make_imod_dir(d)
@@ -507,6 +564,8 @@ TESTS: List[Tuple[str, Callable]] = [
     ("test_particles_import", test_particles_import),
     ("test_rec_crop_writing", test_rec_crop_writing),
     ("test_external_paths_absolute", test_external_paths_absolute),
+    ("test_particle_autoincrement_and_command_log", test_particle_autoincrement_and_command_log),
+    ("test_status_scan_and_sync", test_status_scan_and_sync),
     ("test_validate_strict", test_validate_strict),
     ("test_ctf_missing", test_ctf_missing),
     ("test_defocus_unit_conversion", test_defocus_unit_conversion),

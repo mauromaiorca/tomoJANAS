@@ -17,8 +17,9 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from . import project_writer
 from .star_writer import LoopBlock, PairBlock, write_star
@@ -27,7 +28,61 @@ __all__ = [
     "now_iso",
     "ImportLogger",
     "write_validation_logs",
+    "record_command",
 ]
+
+
+def record_command(
+    project_root: str,
+    argv: Sequence[str],
+    exit_status: int,
+    *,
+    prog: str = "tomojanas-import",
+    version: str = "",
+    cwd: Optional[str] = None,
+) -> None:
+    """Append an executed command to the project command log.
+
+    Writes two files under ``<root>/logs``:
+      * ``commands.jsonl`` — one JSON object per line (machine-readable, with
+        timestamp, full argv, exit status, cwd, version);
+      * ``commands.sh`` — a replayable shell script (one command per entry,
+        prefixed by a comment with timestamp + exit status). Replay in a new
+        project by editing the ``--project`` value and running ``bash``.
+
+    Failures here never raise (logging must not break the command).
+    """
+    try:
+        ld = project_writer.logs_dir(project_root)
+        os.makedirs(ld, exist_ok=True)
+        ts = now_iso()
+        argv = list(argv)
+        cmd_str = prog + " " + " ".join(shlex.quote(a) for a in argv)
+
+        jsonl = os.path.join(ld, "commands.jsonl")
+        with open(jsonl, "a", encoding="utf-8") as f:
+            f.write(json.dumps({
+                "timestamp": ts,
+                "tomojanas_version": version,
+                "prog": prog,
+                "argv": argv,
+                "command": cmd_str,
+                "exit_status": int(exit_status),
+                "cwd": cwd or os.getcwd(),
+            }) + "\n")
+
+        sh = os.path.join(ld, "commands.sh")
+        new_file = not os.path.isfile(sh)
+        with open(sh, "a", encoding="utf-8") as f:
+            if new_file:
+                f.write("#!/usr/bin/env bash\n")
+                f.write("# tomoJANAS command replay log.\n")
+                f.write("# Re-run these commands (edit --project for a new project).\n")
+                f.write("# NOTE: only the command lines are replayed; comments record exit status.\n\n")
+            f.write(f"# [{ts}] exit={int(exit_status)}\n")
+            f.write(cmd_str + "\n\n")
+    except Exception:
+        pass
 
 _LOG_NAME = "tomojanas_import.log"
 

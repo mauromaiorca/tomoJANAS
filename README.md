@@ -7,6 +7,8 @@ tomoJANAS is a command-line framework for importing IMOD tomogram projects, mana
 
 tomoJANAS is **not** a RELION clone. It has its own project structure and uses RELION-compatible `_rln*` tags in dedicated STAR blocks, alongside `_tomoJANAS*` tags in separate blocks for ET-specific provenance.
 
+📖 **[Examples of usage](docs/examples_of_usage.md)** — a growing collection of practical recipes (IMOD import, coordinate import, crops, CTF, validation, status/reconcile, command replay).
+
 ## Key concepts
 
 - **Biological ROI**: spherical in 3D, circular in 2D projections. Cubes/squares are only MRC storage containers.
@@ -24,6 +26,9 @@ tomoJANAS is **not** a RELION clone. It has its own project structure and uses R
 | `tomojanas-import particles` | Import picked coordinates (CSV, STAR, napari, IMOD, single point) and compute per-tilt projections |
 | `tomojanas-import ctf` | Import CTF metadata from CtfPlotter, CTFFind or IMOD without modifying images |
 | `tomojanas-import validate` | Validate project consistency (binning, tilt counts, coordinates, CTF coverage) |
+| `tomojanas-import status` | Scan the project tree, report registered vs. on-disk particles, and reconcile (`--sync`) after manual deletions |
+
+Every invocation is appended (with its exit status) to `logs/commands.jsonl` and a replayable `logs/commands.sh`, so a project's import history can be reproduced in a new project.
 
 ### Legacy command (`tomojanas`)
 

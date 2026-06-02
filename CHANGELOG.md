@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added (newest)
+- **Command log:** every `tomojanas-import` invocation is appended (with exit status, timestamp, full argv, cwd) to `logs/commands.jsonl` and a replayable `logs/commands.sh`. Reproduce a project elsewhere by editing `--project` and running the script.
+- **`tomojanas-import status`:** scans the project tree and reports particles registered in `particles_all.star` vs. the `P*.star` / crop files on disk, flagging orphans/missing/unregistered entries. `--sync` rebuilds `particles_all.star` from the `P*.star` files present (reconciles after manual deletions). `--strict` exits non-zero on any inconsistency.
+- **Particle ID auto-increment:** re-running a `--input-single-point` (or any import) now continues numbering from the highest existing `P*` (e.g. adds `P000002`) instead of overwriting `P000001`. Use `--particle-name`/`--start-particle-id` to control explicitly.
+- **`docs/examples_of_usage.md`** + "Examples of usage" link on the README.
+
 ### Added (latest)
 - **Physical rec sub-volume crops** in `tomojanas-import particles`: `--write-rec-crops` extracts a cubic storage box around the spherical ROI from the reconstructed tomogram, writes `individual_particles_recs/P*_rec.mrc` (float32, header/origin updated via `write_cropped_mrc_like`), and records a `data_tomoJANAS_particle_rec_crop` block in `P*.star`. Supports `--crop-storage-box-size`, `--crop-padding-voxel/angst`, `--crop-outside-policy {error,pad,partial,skip}`, `--crop-pad-value`, `--apply-spherical-mask`.
 

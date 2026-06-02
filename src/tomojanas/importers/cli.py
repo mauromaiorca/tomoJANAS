@@ -182,6 +182,26 @@ def _build_parser() -> argparse.ArgumentParser:
     val_p.add_argument("--write-log", action="store_true", default=True)
     _add_validation_args(val_p)
 
+    # ---- status ------------------------------------------------------- #
+    status_p = sub.add_parser(
+        "status",
+        help="scan the project tree and report present/missing particles",
+        description=(
+            "Scan a project (or one tomogram) and report which particles are "
+            "registered, which individual P*.star files and crops exist on "
+            "disk, and any inconsistencies. Use --sync to rebuild "
+            "particles_all.star from the P*.star files actually present "
+            "(e.g. after deleting particle files manually)."
+        ),
+    )
+    status_p.add_argument("--project", required=True, help="path to the tomoJANAS project root")
+    status_p.add_argument("--tomo-name", default=None,
+                          help="scan only this tomogram (omit for all tomograms)")
+    status_p.add_argument("--sync", action="store_true", default=False,
+                          help="rebuild particles_all.star from the P*.star files on disk")
+    status_p.add_argument("--strict", action="store_true", default=False,
+                          help="exit non-zero if any inconsistency is found")
+
     return parser
 
 
@@ -231,11 +251,17 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     return validate_project_cli(args)
 
 
+def _cmd_status(args: argparse.Namespace) -> int:
+    from tomojanas.importers.status import status_cli
+    return status_cli(args)
+
+
 _DISPATCH = {
     "imod": _cmd_imod,
     "particles": _cmd_particles,
     "ctf": _cmd_ctf,
     "validate": _cmd_validate,
+    "status": _cmd_status,
 }
 
 
@@ -243,6 +269,8 @@ _DISPATCH = {
 # entry point
 # ------------------------------------------------------------------ #
 def main(argv=None) -> None:
+    import os
+    raw_argv = list(sys.argv[1:]) if argv is None else list(argv)
     parser = _build_parser()
     args = parser.parse_args(argv)
     if args.subcommand is None:
@@ -253,7 +281,19 @@ def main(argv=None) -> None:
         parser.print_help()
         sys.exit(1)
     rc = handler(args)
-    sys.exit(rc)
+
+    # Append the executed command (with exit status) to the project command log.
+    project_root = getattr(args, "project", None)
+    if project_root and os.path.isdir(project_root):
+        try:
+            from tomojanas.io.logs import record_command
+            from tomojanas import get_version
+            record_command(project_root, raw_argv, rc if rc is not None else 0,
+                           version=get_version())
+        except Exception:
+            pass
+
+    sys.exit(rc if rc is not None else 0)
 
 
 if __name__ == "__main__":
