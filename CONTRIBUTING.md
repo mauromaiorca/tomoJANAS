@@ -5,7 +5,7 @@ Contributions to tomoJANAS are welcome. This guide covers the basics of setting 
 ## Development setup
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/mauromaiorca/tomoJANAS.git
 cd tomoJANAS
 python3 -m venv .tomojanas_env
 source .tomojanas_env/bin/activate

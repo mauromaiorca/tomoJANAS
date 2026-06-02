@@ -120,25 +120,41 @@ Four blocks per particle:
 
 ## Installation
 
-Requires Python 3.8+, a C++ compiler, and CMake 3.10+.
+### Requirements
+
+- Python 3.8+
+- A C++ compiler (gcc, clang, or MSVC)
+- CMake 3.10+
+
+### First-time install
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/mauromaiorca/tomoJANAS.git
+cd tomoJANAS
+
+# 2. Create and activate a virtual environment (recommended)
+python3 -m venv .tomojanas_env
+source .tomojanas_env/bin/activate
+
+# 3. Install in editable mode
 pip install -e .
 ```
 
-We recommend installing in an isolated environment:
+### Updating to the latest version
 
 ```bash
-python3 -m venv ~/.tomojanas_env
-source ~/.tomojanas_env/bin/activate
+cd tomoJANAS
+git pull origin main
 pip install -e .
 ```
 
-Verify:
+### Verify installation
 
 ```bash
 tomojanas --version
 tomojanas-import --help
+tomojanas-import imod --help
 ```
 
 ## Running tests

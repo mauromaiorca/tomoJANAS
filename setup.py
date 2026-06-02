@@ -101,7 +101,7 @@ setup(
     extras_require={
         'gpu': ['torch>=2.0'],
     },
-    packages=find_packages(where='src', include=['janas*']),
+    packages=find_packages(where='src', include=['janas*', 'tomojanas*']),
     package_dir={'': 'src'},
     ext_modules=[janas_core],
     cmdclass={'build_ext': CMakeBuildExt},
@@ -110,6 +110,7 @@ setup(
     entry_points={
         'console_scripts': [
             'tomojanas = janas.tomojanas_cmd_caller:main',
+            'tomojanas-import = tomojanas.importers.cli:main',
         ],
     },
     license='MIT',
