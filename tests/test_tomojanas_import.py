@@ -366,6 +366,34 @@ def test_status_scan_and_sync():
         print("PASS test_status_scan_and_sync")
 
 
+def test_crop_axis_mapping_xyz():
+    """Lock the crop axis mapping: with default --axis-order xyz the picked
+    (X,Y,Z) maps 1st->nx, 2nd->ny, 3rd->nz (rec[k=Z, j=Y, i=X]); no flip."""
+    with tempfile.TemporaryDirectory() as d:
+        imod_dir = _make_imod_dir(d)
+        # rec with distinct dims + a unique value per voxel: vol[k,j,i]=k*100+j*10+i
+        nz, ny, nx = 3, 5, 7
+        vol = np.fromfunction(lambda k, j, i: k * 100 + j * 10 + i,
+                              (nz, ny, nx)).astype(np.float32)
+        write_mrc(os.path.join(imod_dir, f"{TOMO_NAME}_rec.mrc"), vol, APIX)
+
+        project = os.path.join(d, "project")
+        _run_cmd(["imod", "--project", project, "--create-if-missing",
+                   "--imod-dir", imod_dir, "--tomo-name", TOMO_NAME])
+        # pick (X=4, Y=2, Z=1) -> expect rec[k=1, j=2, i=4] = 124
+        _run_cmd(["particles", "--project", project, "--tomo-name", TOMO_NAME,
+                   "--input-single-point", "4,2,1", "--coordinate-system", "rec-voxel",
+                   "--indexing", "zero-based", "--roi-radius-angst", "1",
+                   "--write-rec-crops", "--crop-storage-box-size", "1"])
+        from tomojanas.io.mrc import read_mrc_data
+        crop = os.path.join(project, "tilt_series", TOMO_NAME,
+                            "individual_particles_recs", "P000001_rec.mrc")
+        cube, _ = read_mrc_data(crop)
+        assert float(cube[0, 0, 0]) == 124.0, \
+            f"axis mapping wrong: centre={cube[0,0,0]} (expected 124 = k1*100+j2*10+i4)"
+        print("PASS test_crop_axis_mapping_xyz")
+
+
 def test_default_axis_order_is_xyz():
     """With no --axis-order, the default is 'xyz' (no header inference)."""
     with tempfile.TemporaryDirectory() as d:
@@ -640,6 +668,7 @@ TESTS: List[Tuple[str, Callable]] = [
     ("test_external_paths_absolute", test_external_paths_absolute),
     ("test_particle_autoincrement_and_command_log", test_particle_autoincrement_and_command_log),
     ("test_status_scan_and_sync", test_status_scan_and_sync),
+    ("test_crop_axis_mapping_xyz", test_crop_axis_mapping_xyz),
     ("test_default_axis_order_is_xyz", test_default_axis_order_is_xyz),
     ("test_explicit_xzy_axis_order", test_explicit_xzy_axis_order),
     ("test_status_create_volume", test_status_create_volume),
