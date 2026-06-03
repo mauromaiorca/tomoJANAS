@@ -366,6 +366,50 @@ def test_status_scan_and_sync():
         print("PASS test_status_scan_and_sync")
 
 
+def test_auto_axis_order_flipped_vs_natural():
+    """Auto axis-order picks 'xzy' for a flipped rec (thickness in the middle
+    axis) and 'xyz' for a natural rec (thickness last)."""
+    from tomojanas.importers.particle_importer import _auto_axis_order
+
+    class H:
+        def __init__(self, nx, ny, nz):
+            self.nx, self.ny, self.nz = nx, ny, nz
+
+    assert _auto_axis_order("rec-voxel", H(1024, 396, 1440), None) == "xzy"
+    assert _auto_axis_order("rec-voxel", H(1024, 1440, 382), None) == "xyz"
+    # non rec-voxel systems never reorder
+    assert _auto_axis_order("relion-centered-angst", H(1024, 396, 1440), None) == "xyz"
+    print("PASS test_auto_axis_order_flipped_vs_natural")
+
+
+def test_flipped_rec_auto_import():
+    """End-to-end: a flipped rec (thickness in middle) imported with default
+    (auto) axis order resolves to 'xzy' and places the crop correctly."""
+    with tempfile.TemporaryDirectory() as d:
+        imod_dir = _make_imod_dir(d)
+        # overwrite the rec with a FLIPPED shape: (nz, ny, nx) = (NY, NZ_REC, NX)
+        # so the file header is nx=NX, ny=NZ_REC(=thickness, middle), nz=NY.
+        flipped = np.ones((NY, NZ_REC, NX), dtype=np.float32)
+        write_mrc(os.path.join(imod_dir, f"{TOMO_NAME}_rec.mrc"), flipped, APIX)
+
+        project = os.path.join(d, "project")
+        _run_cmd(["imod", "--project", project, "--create-if-missing",
+                   "--imod-dir", imod_dir, "--tomo-name", TOMO_NAME])
+        # no --axis-order -> auto should choose xzy
+        rc = _run_cmd(["particles", "--project", project, "--tomo-name", TOMO_NAME,
+                        "--input-single-point", "8,4,3", "--coordinate-system", "rec-voxel",
+                        "--indexing", "zero-based", "--roi-radius-angst", "6",
+                        "--write-rec-crops"])
+        assert rc == 0, f"particles import returned {rc}"
+        p_star = os.path.join(project, "tilt_series", TOMO_NAME,
+                               "individual_particles", "P000001.star")
+        blks = read_star(p_star)
+        src = blks["tomoJANAS_particle_source"]["df"].iloc[0]
+        assert str(src["_tomoJANASPickedAxisOrder"]) == "xzy", \
+            f"expected auto xzy, got {src['_tomoJANASPickedAxisOrder']}"
+        print("PASS test_flipped_rec_auto_import")
+
+
 def test_status_create_volume():
     """status --create-volume backfills _rec.mrc for particles imported
     without crops, and adds the rec-crop block to P*.star."""
@@ -599,6 +643,8 @@ TESTS: List[Tuple[str, Callable]] = [
     ("test_external_paths_absolute", test_external_paths_absolute),
     ("test_particle_autoincrement_and_command_log", test_particle_autoincrement_and_command_log),
     ("test_status_scan_and_sync", test_status_scan_and_sync),
+    ("test_auto_axis_order_flipped_vs_natural", test_auto_axis_order_flipped_vs_natural),
+    ("test_flipped_rec_auto_import", test_flipped_rec_auto_import),
     ("test_status_create_volume", test_status_create_volume),
     ("test_validate_strict", test_validate_strict),
     ("test_ctf_missing", test_ctf_missing),

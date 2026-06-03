@@ -192,9 +192,24 @@ def import_particles(args) -> int:
     input_path = getattr(args, "input", None)
     input_single = getattr(args, "input_single_point", None)
     fmt = getattr(args, "format", "csv")
+
+    coord_system = getattr(args, "coordinate_system", "rec-voxel") or "rec-voxel"
+    if coord_system == "auto":
+        coord_system = "rec-voxel"
+    indexing = getattr(args, "indexing", "zero-based") or "zero-based"
+    if indexing == "auto":
+        indexing = "zero-based"
+
+    # Axis order. When "auto" and picking on the reconstructed tomogram, detect
+    # whether the rec is stored flipped (IMOD raw `tilt` output, thickness in the
+    # middle axis -> 'xzy') or natural (thickness last -> 'xyz') from the header.
     axis_order = getattr(args, "axis_order", "auto") or "auto"
-    if axis_order == "auto":
-        axis_order = "xyz"
+    if fmt == "napari":
+        # napari Points are (z, y, x); the napari reader already returns (x,y,z)
+        if axis_order == "auto":
+            axis_order = "xyz"
+    elif axis_order == "auto":
+        axis_order = _auto_axis_order(coord_system, rec_hdr, logger)
 
     coords_raw: List[Tuple[float, float, float]] = []
     if input_single:
@@ -208,14 +223,8 @@ def import_particles(args) -> int:
         logger.error("No --input or --input-single-point provided")
         return 1
 
-    coord_system = getattr(args, "coordinate_system", "rec-voxel") or "rec-voxel"
-    if coord_system == "auto":
-        coord_system = "rec-voxel"
-    indexing = getattr(args, "indexing", "zero-based") or "zero-based"
-    if indexing == "auto":
-        indexing = "zero-based"
-
-    logger.info(f"Read {len(coords_raw)} coordinates (system={coord_system}, indexing={indexing})")
+    logger.info(f"Read {len(coords_raw)} coordinates "
+                f"(system={coord_system}, indexing={indexing}, axis_order={axis_order})")
 
     # ------------------------------------------------------------------ #
     # ROI
@@ -584,6 +593,32 @@ def _compute_projections(
             "_tomoJANASDefocusAngle": "?",
         })
     return rows
+
+
+def _auto_axis_order(coord_system: str, rec_hdr, logger) -> str:
+    """Choose the input axis order for rec-voxel picks from the rec header.
+
+    IMOD reconstructions are commonly stored "flipped" (the file's Y axis is the
+    depth/thickness); 3dmod then displays them rotated, so the X/Y/Z read from
+    the Zap window are (X, Z, Y) w.r.t. the file -> axis order 'xzy'. Tomograms
+    rotated to the natural orientation have the thickness as the LAST axis and
+    map directly -> 'xyz'.
+
+    Heuristic: the thickness is the smallest of (nx, ny, nz). If it is the
+    middle axis (ny) -> flipped -> 'xzy'; otherwise -> 'xyz'.
+    """
+    if coord_system not in ("rec-voxel", "imod-model", "auto") or rec_hdr is None:
+        return "xyz"
+    dims = (rec_hdr.nx, rec_hdr.ny, rec_hdr.nz)
+    argmin = int(min(range(3), key=lambda i: dims[i]))
+    order = "xzy" if argmin == 1 else "xyz"
+    flipped = "flipped" if order == "xzy" else "natural"
+    msg = (f"auto axis-order: rec (nx,ny,nz)={dims}, thinnest axis="
+           f"{'XYZ'[argmin]} -> {flipped} tomogram -> '{order}'")
+    if logger is not None:
+        logger.info(msg)
+    print("  [auto] " + msg)
+    return order
 
 
 def _next_free_particle_id(ip_dir: str, prefix: str) -> int:

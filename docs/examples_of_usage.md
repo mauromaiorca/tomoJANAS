@@ -30,21 +30,47 @@ Re-import / update an existing tomogram with `--update-existing` (or `--overwrit
 ## 2. Import picked coordinates
 
 The key choices are the **coordinate system** (`rec-voxel` if you picked on the
-reconstructed tomogram), the **indexing** (`zero-based` for napari, `one-based`
-for IMOD models), and the **ROI radius** (`--roi-radius-angst`).
+reconstructed tomogram) and the **ROI radius** (`--roi-radius-angst`).
+
+### Axis order is auto-detected (recommended for IMOD picks)
+
+By default (`--axis-order auto`) tomoJANAS reads the reconstructed tomogram
+header and figures out whether it is stored **flipped** (raw IMOD `tilt`
+output, thickness in the middle axis → coordinates are `xzy`) or **natural**
+(rotated, thickness last → `xyz`). So for coordinates pasted from the **IMOD
+3dmod Zap window** you normally don't need `--axis-order` at all — just pick on
+the reconstructed tomogram and import:
+
+```bash
+tomojanas-import particles \
+  --project first \
+  --tomo-name lam8_ts_004 \
+  --input-single-point 401,268,167 \
+  --coordinate-system rec-voxel \
+  --roi-radius-angst 150 \
+  --write-rec-crops --validate
+```
+
+The run prints the detected orientation, e.g.:
+
+```
+[auto] auto axis-order: rec (nx,ny,nz)=(1024,396,1440), thinnest axis=Y -> flipped tomogram -> 'xzy'
+[crop] P000001: rec (nx,ny,nz)=(1024,396,1440) pixel=5.452 A; picked voxel (x,y,z)=(401,167,268)
+```
+
+You can always override with an explicit `--axis-order` (see the table below)
+and `--indexing {zero-based,one-based}`.
 
 ### 2a. Single point (quick test)
 
 ```bash
 tomojanas-import particles \
   --project first \
-  --tomo-name lam8_ts_006 \
-  --input-single-point 512,401,188 \
+  --tomo-name lam8_ts_004 \
+  --input-single-point 401,268,167 \
   --coordinate-system rec-voxel \
-  --indexing zero-based \
-  --axis-order xyz \
   --roi-radius-angst 150 \
-  --validate
+  --write-rec-crops --validate
 ```
 
 > Re-running with another point **adds** `P000002`, `P000003`, … (particle IDs
@@ -237,14 +263,17 @@ All six axis-order permutations are accepted: `xyz, xzy, yxz, yzx, zxy, zyx`.
 
 ### Is my tomogram "flipped"?
 
-Look at the `[crop]` diagnostic dims. The **thickness** is the smallest axis:
+This is **detected automatically** (default `--axis-order auto`); the run prints
+the decision in the `[auto]` line. The rule, based on the thickness (smallest
+axis of the rec):
 
 - thickness is the **last** axis, e.g. `(1024, 1440, 382)` → **natural orientation**
-  (already rotated). 3dmod readouts map directly to the file → use
-  **`--axis-order xyz --indexing one-based`**.
-- thickness is the **middle** axis, e.g. `(1024, 382, 1440)` → **flipped**
-  (raw `tilt` output). 3dmod shows it rotated → use
-  **`--axis-order xzy --indexing one-based`**.
+  (already rotated) → `xyz`.
+- thickness is the **middle** axis, e.g. `(1024, 396, 1440)` → **flipped**
+  (raw `tilt` output) → `xzy`.
+
+Override with an explicit `--axis-order` only if the auto-detection is wrong for
+your data.
 
 ### An axis is counted from the wrong end
 

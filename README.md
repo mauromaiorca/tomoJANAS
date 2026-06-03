@@ -30,6 +30,8 @@ tomoJANAS is **not** a RELION clone. It has its own project structure and uses R
 
 **Creating sub-volumes:** add `--write-rec-crops` to `tomojanas-import particles` to extract the 3D sub-volume at import time, or run `tomojanas-import status --create-volume` to backfill sub-volumes for particles imported earlier.
 
+**Coordinate axis order is auto-detected:** for picks on the reconstructed tomogram (e.g. pasted from IMOD 3dmod), tomoJANAS reads the rec header and chooses `xyz` (natural orientation) or `xzy` (flipped raw `tilt` output) automatically. Override with `--axis-order` / `--coord-flip-{x,y,z}` if needed.
+
 Every invocation is appended (with its exit status) to `logs/commands.jsonl` and a replayable `logs/commands.sh`, so a project's import history can be reproduced in a new project.
 
 ### Legacy command (`tomojanas`)
