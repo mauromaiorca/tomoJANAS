@@ -32,46 +32,35 @@ Re-import / update an existing tomogram with `--update-existing` (or `--overwrit
 The key choices are the **coordinate system** (`rec-voxel` if you picked on the
 reconstructed tomogram) and the **ROI radius** (`--roi-radius-angst`).
 
-### Axis order: default is `xyz` (coordinates used as given)
+### Axis order: default is `xyz` (the standard — coordinates used as given)
 
-By default the three input numbers map directly to the rec file's `(X, Y, Z)`
-axes (`--axis-order xyz`). No orientation is inferred from the header — the
-behaviour is fully predictable and under your control. Pass `--axis-order`
-explicitly when your coordinates use a different order:
+By default the three input numbers map **directly** to the rec file's
+`(X, Y, Z)` axes (`--axis-order xyz`): the X you pass indexes the file's X
+(nx), Y indexes Y (ny), Z indexes Z (nz). This is the standard way and is what
+**IMOD 3dmod** coordinates use — just paste them as `x,y,z`. Nothing is
+inferred from the header.
 
-- **flipped IMOD tomogram** (raw `tilt` output; thickness on the middle axis):
-  the 3dmod Zap-window X/Y/Z are `(X, Z, Y)` w.r.t. the file → `--axis-order xzy`;
-- **napari** single point: `(z, y, x)` → `--axis-order zyx` (or use
-  `--format napari` for a points CSV).
+You only need a different `--axis-order` if your coordinates are genuinely
+written in another order, e.g. **napari** single points are `(z, y, x)` →
+`--axis-order zyx` (or use `--format napari` for a points CSV, which already
+returns x,y,z).
 
 The `[crop]` diagnostic prints the rec dims and the voxel actually used, so you
 can confirm the location:
 
 ```
-[crop] P000001: rec (nx,ny,nz)=(1024,396,1440) pixel=5.452 A; picked voxel (x,y,z)=(401,167,268)
+[crop] P000001: rec (nx,ny,nz)=(1024,396,1440) pixel=5.452 A; picked voxel (x,y,z)=(404,279,200)
 ```
 
-### 2a. Single point (quick test)
+### 2a. Single point (quick test) — IMOD picks, default `xyz`
 
 ```bash
-# default xyz (e.g. a natural-orientation tomogram or generic coordinates)
-tomojanas-import particles \
-  --project first \
-  --tomo-name lam8_ts_006 \
-  --input-single-point 512,401,188 \
-  --coordinate-system rec-voxel \
-  --indexing zero-based \
-  --roi-radius-angst 150 \
-  --validate
-
-# flipped IMOD tomogram (thickness on the middle axis): add --axis-order xzy
 tomojanas-import particles \
   --project first \
   --tomo-name lam8_ts_004 \
-  --input-single-point 401,268,167 \
+  --input-single-point 404,279,200 \
   --coordinate-system rec-voxel \
   --indexing zero-based \
-  --axis-order xzy \
   --roi-radius-angst 150 \
   --write-rec-crops --validate
 ```
@@ -245,36 +234,23 @@ bash replay.sh
 
 The crop indexes the reconstructed tomogram as `rec[z, y, x]`, so the
 `(x, y, z)` you pass **must match the rec file's `(nx, ny, nz)` axes**. The
-most common cause of a wrong crop is a swapped axis order from the picking tool:
+default `--axis-order xyz` does exactly this (X→nx, Y→ny, Z→nz), which is the
+standard mapping and is what **IMOD 3dmod** coordinates use — paste them as
+`x,y,z` and they work.
 
-| Picking tool | Coordinate order | Indexing | Use |
-|--------------|------------------|----------|-----|
-| **napari** (Points layer) | `(z, y, x)` = axis-0,1,2 | zero-based | `--format napari` (CSV) **or** `--axis-order zyx` (single point) |
-| **IMOD 3dmod**, flipped tomogram (typical) | `(x, z, y)` — Y/Z swapped vs file | one-based | `--axis-order xzy --indexing one-based` |
-| **IMOD 3dmod**, non-flipped | `(x, y, z)` | one-based | `--axis-order xyz --indexing one-based` |
-| generic CSV `x,y,z` | `(x, y, z)` | as produced | `--axis-order xyz` |
+You only need a different `--axis-order` if your coordinates are genuinely in
+another order:
 
-> **IMOD note:** IMOD reconstructions are usually stored "flipped" (the file's
-> Y axis is the depth/thickness). 3dmod displays them in the natural
-> orientation, so the X/Y/Z you read from the **Zap window** are *display*
-> coordinates with **Y and Z swapped** relative to the file. Pasting them
-> directly therefore needs `--axis-order xzy`. Also, 3dmod coordinates are
-> **1-based**, so use `--indexing one-based`. Confirm with the `[crop]`
-> diagnostic that no coordinate is out of range.
+| Picking tool | Coordinate order | Use |
+|--------------|------------------|-----|
+| **IMOD 3dmod** | `(x, y, z)` | default `xyz` |
+| generic CSV `x,y,z` | `(x, y, z)` | default `xyz` |
+| **napari** (Points layer) | `(z, y, x)` = axis-0,1,2 | `--format napari` (CSV) **or** `--axis-order zyx` (single point) |
 
 All six axis-order permutations are accepted: `xyz, xzy, yxz, yzx, zxy, zyx`.
-
-### Is my tomogram "flipped"? (choosing the axis order)
-
-Look at the `[crop]` diagnostic dims. The **thickness** is the smallest axis:
-
-- thickness is the **last** axis, e.g. `(1024, 1440, 382)` → **natural orientation**
-  (already rotated) → use the default `xyz`.
-- thickness is the **middle** axis, e.g. `(1024, 396, 1440)` → **flipped**
-  (raw `tilt` output) → use `--axis-order xzy`.
-
-There is **no automatic detection**: you choose the order explicitly. If a crop
-is wrong, check the `[crop]` line and switch the axis order accordingly.
+There is no automatic detection — you choose the order explicitly. If a crop is
+wrong, check the `[crop]` diagnostic line (it prints the rec dims and the voxel
+actually used) and pick the order that lands on your feature.
 
 ### An axis is counted from the wrong end
 
