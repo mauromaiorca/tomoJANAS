@@ -273,7 +273,9 @@ axis of the rec):
   (raw `tilt` output) → `xzy`.
 
 Override with an explicit `--axis-order` only if the auto-detection is wrong for
-your data.
+your data. If you pass an explicit `--axis-order` that disagrees with the
+detected orientation, a `[warn]` line is printed (e.g. you forced `xyz` on a
+flipped tomogram) — heed it or drop the flag to let auto choose.
 
 ### An axis is counted from the wrong end
 

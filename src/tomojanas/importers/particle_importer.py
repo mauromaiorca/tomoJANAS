@@ -204,12 +204,26 @@ def import_particles(args) -> int:
     # whether the rec is stored flipped (IMOD raw `tilt` output, thickness in the
     # middle axis -> 'xzy') or natural (thickness last -> 'xyz') from the header.
     axis_order = getattr(args, "axis_order", "auto") or "auto"
+    explicit_axis = axis_order != "auto"
     if fmt == "napari":
         # napari Points are (z, y, x); the napari reader already returns (x,y,z)
-        if axis_order == "auto":
+        if not explicit_axis:
             axis_order = "xyz"
-    elif axis_order == "auto":
+    elif not explicit_axis:
         axis_order = _auto_axis_order(coord_system, rec_hdr, logger)
+    else:
+        # explicit axis order: warn if it disagrees with the detected orientation
+        suggested = _auto_axis_order(coord_system, rec_hdr, None)
+        if (suggested != axis_order
+                and coord_system in ("rec-voxel", "imod-model", "auto")
+                and rec_hdr is not None):
+            where = "middle" if suggested == "xzy" else "last"
+            w = (f"--axis-order {axis_order} was given, but the rec header looks "
+                 f"like a {'flipped' if suggested == 'xzy' else 'natural'} tomogram "
+                 f"(thickness on the {where} axis) -> expected '{suggested}'. "
+                 f"If the crop is wrong, use --axis-order {suggested} or omit it (auto).")
+            logger.warning(w)
+            print("  [warn] " + w)
 
     coords_raw: List[Tuple[float, float, float]] = []
     if input_single:
@@ -617,7 +631,7 @@ def _auto_axis_order(coord_system: str, rec_hdr, logger) -> str:
            f"{'XYZ'[argmin]} -> {flipped} tomogram -> '{order}'")
     if logger is not None:
         logger.info(msg)
-    print("  [auto] " + msg)
+        print("  [auto] " + msg)
     return order
 
 
