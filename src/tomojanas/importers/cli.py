@@ -110,9 +110,10 @@ def _build_parser() -> argparse.ArgumentParser:
     part_p.add_argument("--indexing", default="auto", choices=["auto", "zero-based", "one-based"])
     part_p.add_argument("--axis-order", default="auto",
                         choices=["auto", "xyz", "xzy", "yxz", "yzx", "zxy", "zyx"],
-                        help="order of the input coordinate columns. IMOD 3dmod "
-                             "readouts of a flipped tomogram are usually 'xzy' "
-                             "(Y and Z swapped); napari points are 'zyx'.")
+                        help="order of the input coordinate columns. Default 'xyz' "
+                             "(numbers used as given, mapped to the rec X,Y,Z axes). "
+                             "Use 'xzy' for a flipped IMOD tomogram (Y and Z swapped) "
+                             "and 'zyx' for napari single points.")
     # per-axis coordinate inversion (for tools that count an axis from the end,
     # e.g. a flipped Y origin). Applied in 0-based rec-voxel space.
     part_p.add_argument("--coord-flip-x", action="store_true", default=False,

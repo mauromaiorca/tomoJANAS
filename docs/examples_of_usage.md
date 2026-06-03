@@ -32,43 +32,46 @@ Re-import / update an existing tomogram with `--update-existing` (or `--overwrit
 The key choices are the **coordinate system** (`rec-voxel` if you picked on the
 reconstructed tomogram) and the **ROI radius** (`--roi-radius-angst`).
 
-### Axis order is auto-detected (recommended for IMOD picks)
+### Axis order: default is `xyz` (coordinates used as given)
 
-By default (`--axis-order auto`) tomoJANAS reads the reconstructed tomogram
-header and figures out whether it is stored **flipped** (raw IMOD `tilt`
-output, thickness in the middle axis → coordinates are `xzy`) or **natural**
-(rotated, thickness last → `xyz`). So for coordinates pasted from the **IMOD
-3dmod Zap window** you normally don't need `--axis-order` at all — just pick on
-the reconstructed tomogram and import:
+By default the three input numbers map directly to the rec file's `(X, Y, Z)`
+axes (`--axis-order xyz`). No orientation is inferred from the header — the
+behaviour is fully predictable and under your control. Pass `--axis-order`
+explicitly when your coordinates use a different order:
 
-```bash
-tomojanas-import particles \
-  --project first \
-  --tomo-name lam8_ts_004 \
-  --input-single-point 401,268,167 \
-  --coordinate-system rec-voxel \
-  --roi-radius-angst 150 \
-  --write-rec-crops --validate
-```
+- **flipped IMOD tomogram** (raw `tilt` output; thickness on the middle axis):
+  the 3dmod Zap-window X/Y/Z are `(X, Z, Y)` w.r.t. the file → `--axis-order xzy`;
+- **napari** single point: `(z, y, x)` → `--axis-order zyx` (or use
+  `--format napari` for a points CSV).
 
-The run prints the detected orientation, e.g.:
+The `[crop]` diagnostic prints the rec dims and the voxel actually used, so you
+can confirm the location:
 
 ```
-[auto] auto axis-order: rec (nx,ny,nz)=(1024,396,1440), thinnest axis=Y -> flipped tomogram -> 'xzy'
 [crop] P000001: rec (nx,ny,nz)=(1024,396,1440) pixel=5.452 A; picked voxel (x,y,z)=(401,167,268)
 ```
-
-You can always override with an explicit `--axis-order` (see the table below)
-and `--indexing {zero-based,one-based}`.
 
 ### 2a. Single point (quick test)
 
 ```bash
+# default xyz (e.g. a natural-orientation tomogram or generic coordinates)
+tomojanas-import particles \
+  --project first \
+  --tomo-name lam8_ts_006 \
+  --input-single-point 512,401,188 \
+  --coordinate-system rec-voxel \
+  --indexing zero-based \
+  --roi-radius-angst 150 \
+  --validate
+
+# flipped IMOD tomogram (thickness on the middle axis): add --axis-order xzy
 tomojanas-import particles \
   --project first \
   --tomo-name lam8_ts_004 \
   --input-single-point 401,268,167 \
   --coordinate-system rec-voxel \
+  --indexing zero-based \
+  --axis-order xzy \
   --roi-radius-angst 150 \
   --write-rec-crops --validate
 ```
@@ -261,21 +264,17 @@ most common cause of a wrong crop is a swapped axis order from the picking tool:
 
 All six axis-order permutations are accepted: `xyz, xzy, yxz, yzx, zxy, zyx`.
 
-### Is my tomogram "flipped"?
+### Is my tomogram "flipped"? (choosing the axis order)
 
-This is **detected automatically** (default `--axis-order auto`); the run prints
-the decision in the `[auto]` line. The rule, based on the thickness (smallest
-axis of the rec):
+Look at the `[crop]` diagnostic dims. The **thickness** is the smallest axis:
 
 - thickness is the **last** axis, e.g. `(1024, 1440, 382)` → **natural orientation**
-  (already rotated) → `xyz`.
+  (already rotated) → use the default `xyz`.
 - thickness is the **middle** axis, e.g. `(1024, 396, 1440)` → **flipped**
-  (raw `tilt` output) → `xzy`.
+  (raw `tilt` output) → use `--axis-order xzy`.
 
-Override with an explicit `--axis-order` only if the auto-detection is wrong for
-your data. If you pass an explicit `--axis-order` that disagrees with the
-detected orientation, a `[warn]` line is printed (e.g. you forced `xyz` on a
-flipped tomogram) — heed it or drop the flag to let auto choose.
+There is **no automatic detection**: you choose the order explicitly. If a crop
+is wrong, check the `[crop]` line and switch the axis order accordingly.
 
 ### An axis is counted from the wrong end
 

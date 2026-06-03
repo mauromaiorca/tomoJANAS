@@ -366,48 +366,45 @@ def test_status_scan_and_sync():
         print("PASS test_status_scan_and_sync")
 
 
-def test_auto_axis_order_flipped_vs_natural():
-    """Auto axis-order picks 'xzy' for a flipped rec (thickness in the middle
-    axis) and 'xyz' for a natural rec (thickness last)."""
-    from tomojanas.importers.particle_importer import _auto_axis_order
-
-    class H:
-        def __init__(self, nx, ny, nz):
-            self.nx, self.ny, self.nz = nx, ny, nz
-
-    assert _auto_axis_order("rec-voxel", H(1024, 396, 1440), None) == "xzy"
-    assert _auto_axis_order("rec-voxel", H(1024, 1440, 382), None) == "xyz"
-    # non rec-voxel systems never reorder
-    assert _auto_axis_order("relion-centered-angst", H(1024, 396, 1440), None) == "xyz"
-    print("PASS test_auto_axis_order_flipped_vs_natural")
-
-
-def test_flipped_rec_auto_import():
-    """End-to-end: a flipped rec (thickness in middle) imported with default
-    (auto) axis order resolves to 'xzy' and places the crop correctly."""
+def test_default_axis_order_is_xyz():
+    """With no --axis-order, the default is 'xyz' (no header inference)."""
     with tempfile.TemporaryDirectory() as d:
         imod_dir = _make_imod_dir(d)
-        # overwrite the rec with a FLIPPED shape: (nz, ny, nx) = (NY, NZ_REC, NX)
-        # so the file header is nx=NX, ny=NZ_REC(=thickness, middle), nz=NY.
+        # use a flipped-shaped rec to prove there is NO auto-detection anymore
         flipped = np.ones((NY, NZ_REC, NX), dtype=np.float32)
         write_mrc(os.path.join(imod_dir, f"{TOMO_NAME}_rec.mrc"), flipped, APIX)
-
         project = os.path.join(d, "project")
         _run_cmd(["imod", "--project", project, "--create-if-missing",
                    "--imod-dir", imod_dir, "--tomo-name", TOMO_NAME])
-        # no --axis-order -> auto should choose xzy
         rc = _run_cmd(["particles", "--project", project, "--tomo-name", TOMO_NAME,
                         "--input-single-point", "8,4,3", "--coordinate-system", "rec-voxel",
-                        "--indexing", "zero-based", "--roi-radius-angst", "6",
-                        "--write-rec-crops"])
+                        "--indexing", "zero-based", "--roi-radius-angst", "6"])
         assert rc == 0, f"particles import returned {rc}"
         p_star = os.path.join(project, "tilt_series", TOMO_NAME,
                                "individual_particles", "P000001.star")
-        blks = read_star(p_star)
-        src = blks["tomoJANAS_particle_source"]["df"].iloc[0]
-        assert str(src["_tomoJANASPickedAxisOrder"]) == "xzy", \
-            f"expected auto xzy, got {src['_tomoJANASPickedAxisOrder']}"
-        print("PASS test_flipped_rec_auto_import")
+        src = read_star(p_star)["tomoJANAS_particle_source"]["df"].iloc[0]
+        assert str(src["_tomoJANASPickedAxisOrder"]) == "xyz", \
+            f"default should be xyz, got {src['_tomoJANASPickedAxisOrder']}"
+        print("PASS test_default_axis_order_is_xyz")
+
+
+def test_explicit_xzy_axis_order():
+    """Explicit --axis-order xzy reorders (X,Z,Y) inputs and is recorded."""
+    with tempfile.TemporaryDirectory() as d:
+        imod_dir = _make_imod_dir(d)
+        project = os.path.join(d, "project")
+        _run_cmd(["imod", "--project", project, "--create-if-missing",
+                   "--imod-dir", imod_dir, "--tomo-name", TOMO_NAME])
+        rc = _run_cmd(["particles", "--project", project, "--tomo-name", TOMO_NAME,
+                        "--input-single-point", "8,4,3", "--coordinate-system", "rec-voxel",
+                        "--indexing", "zero-based", "--axis-order", "xzy",
+                        "--roi-radius-angst", "6"])
+        assert rc == 0, f"particles import returned {rc}"
+        p_star = os.path.join(project, "tilt_series", TOMO_NAME,
+                               "individual_particles", "P000001.star")
+        src = read_star(p_star)["tomoJANAS_particle_source"]["df"].iloc[0]
+        assert str(src["_tomoJANASPickedAxisOrder"]) == "xzy"
+        print("PASS test_explicit_xzy_axis_order")
 
 
 def test_status_create_volume():
@@ -643,8 +640,8 @@ TESTS: List[Tuple[str, Callable]] = [
     ("test_external_paths_absolute", test_external_paths_absolute),
     ("test_particle_autoincrement_and_command_log", test_particle_autoincrement_and_command_log),
     ("test_status_scan_and_sync", test_status_scan_and_sync),
-    ("test_auto_axis_order_flipped_vs_natural", test_auto_axis_order_flipped_vs_natural),
-    ("test_flipped_rec_auto_import", test_flipped_rec_auto_import),
+    ("test_default_axis_order_is_xyz", test_default_axis_order_is_xyz),
+    ("test_explicit_xzy_axis_order", test_explicit_xzy_axis_order),
     ("test_status_create_volume", test_status_create_volume),
     ("test_validate_strict", test_validate_strict),
     ("test_ctf_missing", test_ctf_missing),

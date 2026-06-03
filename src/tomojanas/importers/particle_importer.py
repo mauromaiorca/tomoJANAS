@@ -200,30 +200,13 @@ def import_particles(args) -> int:
     if indexing == "auto":
         indexing = "zero-based"
 
-    # Axis order. When "auto" and picking on the reconstructed tomogram, detect
-    # whether the rec is stored flipped (IMOD raw `tilt` output, thickness in the
-    # middle axis -> 'xzy') or natural (thickness last -> 'xyz') from the header.
+    # Axis order. Default is 'xyz': the three input numbers map directly to the
+    # rec file's (X, Y, Z) axes. Pass --axis-order explicitly (e.g. 'xzy' for a
+    # flipped IMOD tomogram, 'zyx' for napari) when your coordinates use a
+    # different order. No orientation is inferred from the header.
     axis_order = getattr(args, "axis_order", "auto") or "auto"
-    explicit_axis = axis_order != "auto"
-    if fmt == "napari":
-        # napari Points are (z, y, x); the napari reader already returns (x,y,z)
-        if not explicit_axis:
-            axis_order = "xyz"
-    elif not explicit_axis:
-        axis_order = _auto_axis_order(coord_system, rec_hdr, logger)
-    else:
-        # explicit axis order: warn if it disagrees with the detected orientation
-        suggested = _auto_axis_order(coord_system, rec_hdr, None)
-        if (suggested != axis_order
-                and coord_system in ("rec-voxel", "imod-model", "auto")
-                and rec_hdr is not None):
-            where = "middle" if suggested == "xzy" else "last"
-            w = (f"--axis-order {axis_order} was given, but the rec header looks "
-                 f"like a {'flipped' if suggested == 'xzy' else 'natural'} tomogram "
-                 f"(thickness on the {where} axis) -> expected '{suggested}'. "
-                 f"If the crop is wrong, use --axis-order {suggested} or omit it (auto).")
-            logger.warning(w)
-            print("  [warn] " + w)
+    if axis_order == "auto":
+        axis_order = "xyz"
 
     coords_raw: List[Tuple[float, float, float]] = []
     if input_single:
@@ -607,32 +590,6 @@ def _compute_projections(
             "_tomoJANASDefocusAngle": "?",
         })
     return rows
-
-
-def _auto_axis_order(coord_system: str, rec_hdr, logger) -> str:
-    """Choose the input axis order for rec-voxel picks from the rec header.
-
-    IMOD reconstructions are commonly stored "flipped" (the file's Y axis is the
-    depth/thickness); 3dmod then displays them rotated, so the X/Y/Z read from
-    the Zap window are (X, Z, Y) w.r.t. the file -> axis order 'xzy'. Tomograms
-    rotated to the natural orientation have the thickness as the LAST axis and
-    map directly -> 'xyz'.
-
-    Heuristic: the thickness is the smallest of (nx, ny, nz). If it is the
-    middle axis (ny) -> flipped -> 'xzy'; otherwise -> 'xyz'.
-    """
-    if coord_system not in ("rec-voxel", "imod-model", "auto") or rec_hdr is None:
-        return "xyz"
-    dims = (rec_hdr.nx, rec_hdr.ny, rec_hdr.nz)
-    argmin = int(min(range(3), key=lambda i: dims[i]))
-    order = "xzy" if argmin == 1 else "xyz"
-    flipped = "flipped" if order == "xzy" else "natural"
-    msg = (f"auto axis-order: rec (nx,ny,nz)={dims}, thinnest axis="
-           f"{'XYZ'[argmin]} -> {flipped} tomogram -> '{order}'")
-    if logger is not None:
-        logger.info(msg)
-        print("  [auto] " + msg)
-    return order
 
 
 def _next_free_particle_id(ip_dir: str, prefix: str) -> int:
